@@ -83,8 +83,26 @@
     align-items: center; justify-content: space-between;
     padding: 0 72px; cursor: pointer; position: relative; overflow: hidden;
   }
-  .ring { position: absolute; border: 1px solid rgba(247,241,227,.14); border-radius: 50%; }
-  .attract-left { display: flex; flex-direction: column; gap: 26px; position: relative; }
+  /* The attract loop: a curtain swaying under a flash, on a 7.5s seamless cut.
+     It sits under everything else on this screen. The scrim is what makes cream
+     text legible over warm amber footage, and it is weighted heavily to the left
+     — where the copy lives — so the flash still reads through on the right. */
+  .attract-video {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 0; pointer-events: none;
+    filter: saturate(.72) contrast(1.04);
+  }
+  .attract-scrim {
+    position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(90deg,
+      var(--green) 0%, rgba(18,59,38,.93) 32%, rgba(18,59,38,.52) 62%, rgba(18,59,38,.64) 100%);
+  }
+  /* Falls back to the plain green ground, which is what this screen was before. */
+  @media (prefers-reduced-motion: reduce) {
+    .attract-video, .attract-scrim { display: none; }
+  }
+  .ring { position: absolute; border: 1px solid rgba(247,241,227,.14); border-radius: 50%; z-index: 2; }
+  .attract-left { display: flex; flex-direction: column; gap: 26px; position: relative; z-index: 2; }
   .attract-title { font-size: 72px; font-weight: 700; letter-spacing: -.03em; line-height: .98; font-family: 'IBM Plex Sans KR', sans-serif; }
   .attract-sub { font-size: 30px; font-weight: 500; letter-spacing: .16em; margin-top: 12px; opacity: .72; }
   .attract-info { font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .14em; opacity: .65; line-height: 2; }
@@ -119,7 +137,7 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 12px;
     letter-spacing: .13em; opacity: .5;
   }
-  .attract-polaroid { position: relative; width: 290px; height: 348px; }
+  .attract-polaroid { position: relative; width: 290px; height: 348px; z-index: 2; }
   .attract-polaroid > div {
     position: absolute; inset: 0; background: var(--paper);
     padding: 15px 15px 68px; box-shadow: 0 30px 60px rgba(0,0,0,.35); transform: rotate(-5deg);
@@ -297,6 +315,12 @@
 
   <!-- attract -->
   <div id="scr-attract" class="screen">
+    <video id="attract-video" class="attract-video"
+           src="assets/video/attract-curtain.mp4"
+           poster="assets/video/attract-curtain.jpg"
+           muted loop playsinline autoplay preload="auto"
+           aria-hidden="true" tabindex="-1"></video>
+    <div class="attract-scrim"></div>
     <div class="ring" style="right:-140px;top:-140px;width:520px;height:520px"></div>
     <div class="ring" style="right:-60px;bottom:-220px;width:420px;height:420px;border-color:rgba(247,241,227,.1)"></div>
     <div class="attract-left">
@@ -781,6 +805,22 @@ function todayStr() {
 
 /* ---------- screen routing ---------- */
 
+// The booth sits on the attract screen for hours between guests, so the loop is
+// only ever decoding while that screen is actually up and the tab is visible.
+// Off-screen it rewinds, so every guest sees the curtain from the same frame.
+function attractVideo(on) {
+  const v = $('attract-video');
+  if (!v) return;
+  if (on && document.visibilityState === 'visible') {
+    // Rejected when autoplay is blocked; the poster frame stands in, and the
+    // first tap starts a session anyway, so there is nothing to recover from.
+    v.play().catch(() => {});
+  } else {
+    v.pause();
+    if (!on) v.currentTime = 0;
+  }
+}
+
 function show(screen) {
   const prev = state.screen;
   state.screen = screen;
@@ -793,6 +833,7 @@ function show(screen) {
   if (screen === 'select') renderPicks();
   if (screen === 'filter' || screen === 'decorate' || screen === 'print') renderPolaroids();
   if (screen === 'decorate') { renderTabs(); renderPalette(); renderStickers(); }
+  attractVideo(screen === 'attract');
 
   // The soft bed runs under every screen except the shoot, which belongs to the
   // camera: the countdown beeps and the shutter need clear air, and the shoot has
@@ -2061,6 +2102,7 @@ async function keepAwake() {
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && !wakeLock) keepAwake();
+  attractVideo(state.screen === 'attract');
 });
 
 /* ---------- wire up ---------- */

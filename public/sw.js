@@ -5,12 +5,13 @@
    SHELL is the markup and art, and turns over on every deploy.
    HEAVY is the vendored MediaPipe wasm and face model — ~15MB that changes
    only when the vendored version does. Keeping them apart means a routine
-   deploy re-downloads a few hundred KB, not fifteen megabytes.
+   deploy re-downloads about two megabytes — mostly the attract loop — rather
+   than fifteen.
 
    Bump HEAVY_CACHE only when the files under /vendor or /models change.
 */
 
-const SHELL_CACHE = 'seoul-shell-v1';
+const SHELL_CACHE = 'seoul-shell-v2';
 const HEAVY_CACHE = 'seoul-heavy-mediapipe-1.0.1';
 
 const SHELL = [
@@ -19,6 +20,8 @@ const SHELL = [
   '/manifest.json',
   '/assets/logo-mark.png',
   '/assets/logo-mask.png',
+  '/assets/video/attract-curtain.mp4',
+  '/assets/video/attract-curtain.jpg',
 ];
 
 const HEAVY = [
