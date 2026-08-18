@@ -137,15 +137,26 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 12px;
     letter-spacing: .13em; opacity: .5;
   }
-  .attract-polaroid { position: relative; width: 290px; height: 348px; z-index: 2; }
+  /* Sized off the same 290x348 proportions, just larger: at 1.45x it is the
+     biggest the frame goes before the -5deg rotation starts crowding the copy. */
+  .attract-polaroid { position: relative; width: 420px; height: 504px; z-index: 2; }
   .attract-polaroid > div {
     position: absolute; inset: 0; background: var(--paper);
-    padding: 15px 15px 68px; box-shadow: 0 30px 60px rgba(0,0,0,.35); transform: rotate(-5deg);
+    padding: 22px 22px 98px; box-shadow: 0 34px 70px rgba(0,0,0,.38); transform: rotate(-5deg);
   }
-  .attract-polaroid .film { width: 100%; height: 100%; background: repeating-linear-gradient(135deg,#DED5C2 0 12px,#E9E1D0 12px 24px); }
+  /* The hatch is the empty-film look, and stays as the ground the photo sits on,
+     so a missing or slow image degrades to the placeholder rather than to white. */
+  .attract-polaroid .film {
+    position: relative; width: 100%; height: 100%; overflow: hidden;
+    background: repeating-linear-gradient(135deg,#DED5C2 0 12px,#E9E1D0 12px 24px);
+  }
+  .attract-polaroid .film img {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover; display: block;
+  }
   .attract-polaroid .cap {
-    position: absolute; left: 16px; bottom: 22px;
-    font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .18em; color: var(--green); opacity: .5;
+    position: absolute; left: 23px; bottom: 32px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .18em; color: var(--green); opacity: .5;
   }
 
   /* ------- frame (film) choice ------- */
@@ -198,8 +209,8 @@
   #flash { position: absolute; inset: 0; background: var(--paper); opacity: 0; pointer-events: none; }
   #flash.on { animation: flashout .35s ease-out forwards; }
   .shoot-right { width: 236px; display: flex; flex-direction: column; gap: 18px; }
-  #shoot-title-ko { font-size: 28px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.2; }
-  #shoot-title-en { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .12em; opacity: .65; line-height: 1.9; }
+  #shoot-title-lead { font-size: 28px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.2; }
+  #shoot-title-sub { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .12em; opacity: .65; line-height: 1.9; }
   #btn-shoot { background: var(--butter); color: var(--green); padding: 24px 20px; text-align: center; font-size: 20px; font-weight: 700; cursor: pointer; }
   #btn-shoot:hover { background: #f0c65f; }
   #btn-cancel-shoot {
@@ -277,8 +288,8 @@
   /* ------- print ------- */
   #scr-print { flex: 1; background: var(--green-deep); color: var(--cream); align-items: center; justify-content: center; gap: 60px; padding: 0 64px; }
   .print-left { width: 372px; display: flex; flex-direction: column; gap: 20px; }
-  #print-title-ko { font-size: 40px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: -.02em; line-height: 1.15; }
-  #print-title-en { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .14em; opacity: .65; line-height: 2; }
+  #print-title-lead { font-size: 40px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: -.02em; line-height: 1.15; }
+  #print-title-sub { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .14em; opacity: .65; line-height: 2; }
   #print-done { display: none; flex-direction: column; gap: 22px; }
   #print-done.on { display: flex; }
   #qr-card { display: flex; align-items: center; gap: 18px; background: rgba(247,241,227,.07); padding: 18px; }
@@ -310,7 +321,7 @@
       <div style="font-size:13px;letter-spacing:.2em;font-weight:600">PHOTO BOOTH</div>
     </div>
     <div id="steps"></div>
-    <div id="restart">처음으로 / RESTART</div>
+    <div id="restart" data-i18n="restart">처음으로 / RESTART</div>
   </div>
 
   <!-- attract -->
@@ -350,7 +361,10 @@
     </div>
     <div class="attract-polaroid">
       <div>
-        <div class="film"></div>
+        <div class="film">
+          <img src="assets/attract-polaroid.jpg" alt=""
+               onerror="this.remove()">
+        </div>
         <div class="cap">CAFE ON SEOUL</div>
       </div>
     </div>
@@ -359,11 +373,11 @@
   <!-- frame choice -->
   <div id="scr-frame" class="screen">
     <div style="text-align:center">
-      <div class="screen-title">필름을 골라주세요</div>
+      <div class="screen-title" data-i18n="frameTitle">필름을 골라주세요</div>
       <div class="screen-sub">CHOOSE YOUR FILM · 1 POLAROID PER SESSION</div>
     </div>
     <div id="frame-list"></div>
-    <div id="btn-frame-next" class="btn-primary">다음 &nbsp;·&nbsp; NEXT</div>
+    <div id="btn-frame-next" class="btn-primary" data-i18n="nextWide">다음 &nbsp;·&nbsp; NEXT</div>
   </div>
 
   <!-- shoot -->
@@ -376,30 +390,30 @@
       <video id="cam" autoplay playsinline muted></video>
       <div id="cam-error">
       <div>CAMERA UNAVAILABLE<br><span id="cam-error-why">SIMULATED SHOTS WILL BE USED</span></div>
-      <div id="btn-cam-retry">다시 시도 · RETRY</div>
+      <div id="btn-cam-retry" data-i18n="camRetry">다시 시도 · RETRY</div>
     </div>
       <div class="vf-inset"></div>
       <div id="countdown"></div>
       <div id="flash"></div>
     </div>
     <div class="shoot-right">
-      <div id="shoot-title-ko"></div>
-      <div id="shoot-title-en"></div>
-      <div id="btn-shoot">촬영 시작 · START</div>
-      <div id="btn-cancel-shoot" style="display:none">중단 · CANCEL</div>
+      <div id="shoot-title-lead"></div>
+      <div id="shoot-title-sub"></div>
+      <div id="btn-shoot" data-i18n="shootStart">촬영 시작 · START</div>
+      <div id="btn-cancel-shoot" style="display:none" data-i18n="shootCancel">중단 · CANCEL</div>
     </div>
   </div>
 
   <!-- select -->
   <div id="scr-select" class="screen">
     <div style="text-align:center">
-      <div class="screen-title">인화할 사진 한 장</div>
+      <div class="screen-title" data-i18n="selectTitle">인화할 사진 한 장</div>
       <div class="screen-sub">PICK YOUR FAVOURITE</div>
     </div>
     <div id="pick-list"></div>
     <div style="display:flex;gap:16px">
-      <div id="btn-retake" class="btn-ghost">다시 촬영 · RETAKE</div>
-      <div id="btn-select-next">다음 · NEXT</div>
+      <div id="btn-retake" class="btn-ghost" data-i18n="retake">다시 촬영 · RETAKE</div>
+      <div id="btn-select-next" data-i18n="next">다음 · NEXT</div>
     </div>
   </div>
 
@@ -411,11 +425,11 @@
     </div>
     <div class="filter-right">
       <div>
-        <h2>필터</h2>
+        <h2 data-i18n="filterHead">필터</h2>
         <div class="screen-sub" style="font-size:12px">FILTER</div>
       </div>
       <div id="filter-grid"></div>
-      <div id="btn-decorate">스티커 꾸미기 · DECORATE</div>
+      <div id="btn-decorate" data-i18n="decorate">스티커 꾸미기 · DECORATE</div>
     </div>
   </div>
 
@@ -424,7 +438,7 @@
     <div class="deco-panel">
       <div id="set-tabs"></div>
       <div id="palette"></div>
-      <div class="deco-hint">스티커를 눌러 추가 · 드래그해서 이동<br>TAP TO ADD · DRAG TO MOVE</div>
+      <div class="deco-hint" data-i18n="decoHint">스티커를 눌러 추가 · 드래그해서 이동<br>TAP TO ADD · DRAG TO MOVE</div>
     </div>
     <div class="deco-main">
       <div class="polaroid" id="pol-decorate">
@@ -432,11 +446,11 @@
         <div class="caption"><span>CAFE ON SEOUL</span><span class="date"></span></div>
       </div>
       <div class="deco-right">
-        <h2>꾸미기</h2>
-        <div id="btn-back-filter" class="btn-small">필터로 · BACK</div>
-        <div id="btn-undo" class="btn-small">되돌리기 · UNDO</div>
-        <div id="btn-clear" class="btn-small">전체 삭제 · CLEAR</div>
-        <div id="btn-print">인화하기 · PRINT</div>
+        <h2 data-i18n="decoHead">꾸미기</h2>
+        <div id="btn-back-filter" class="btn-small" data-i18n="backFilter">필터로 · BACK</div>
+        <div id="btn-undo" class="btn-small" data-i18n="undo">되돌리기 · UNDO</div>
+        <div id="btn-clear" class="btn-small" data-i18n="clear">전체 삭제 · CLEAR</div>
+        <div id="btn-print" data-i18n="print">인화하기 · PRINT</div>
         <div id="sticker-count">0 STICKERS PLACED</div>
       </div>
     </div>
@@ -445,8 +459,8 @@
   <!-- print -->
   <div id="scr-print" class="screen">
     <div class="print-left">
-      <div id="print-title-ko"></div>
-      <div id="print-title-en"></div>
+      <div id="print-title-lead"></div>
+      <div id="print-title-sub"></div>
       <div id="print-done">
         <div id="qr-card">
           <div class="qr-slot">
@@ -455,7 +469,7 @@
           </div>
           <div class="txt" id="qr-text">디지털 파일 받기<br>SCAN TO DOWNLOAD<br>EXPIRES IN 24H</div>
         </div>
-        <div id="btn-done">완료 · DONE</div>
+        <div id="btn-done" data-i18n="done">완료 · DONE</div>
       </div>
       <div id="print-spinner"><div class="spin"></div>PRINTING…</div>
     </div>
@@ -487,6 +501,104 @@ const CONFIG = {
 };
 
 const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B';
+
+/* ---------- language ---------- */
+
+// Two guest languages, chosen by the flags on the attract screen. Only the lead
+// line of each label is translated: the mono line under it stays English on
+// purpose, so a guest who reads neither Korean nor Malay can still work the
+// booth. The attract screen itself is never translated — it is the screen that
+// asks the question, so it has to speak both at once.
+//
+// Keys are the copy, not the widget: two buttons that say the same thing share
+// one key. `nextWide` differs from `next` only in its spacing, which is the
+// frame screen's wider primary button.
+const STRINGS = {
+  ko: {
+    restart:     '\uCC98\uC74C\uC73C\uB85C / RESTART',
+    frameTitle:  '\uD544\uB984\uC744 \uACE8\uB77C\uC8FC\uC138\uC694',
+    nextWide:    '\uB2E4\uC74C &nbsp;\u00B7&nbsp; NEXT',
+    next:        '\uB2E4\uC74C \u00B7 NEXT',
+    camRetry:    '\uB2E4\uC2DC \uC2DC\uB3C4 \u00B7 RETRY',
+    shootStart:  '\uCD2C\uC601 \uC2DC\uC791 \u00B7 START',
+    shootCancel: '\uC911\uB2E8 \u00B7 CANCEL',
+    selectTitle: '\uC778\uD654\uD560 \uC0AC\uC9C4 \uD55C \uC7A5',
+    retake:      '\uB2E4\uC2DC \uCD2C\uC601 \u00B7 RETAKE',
+    filterHead:  '\uD544\uD130',
+    decorate:    '\uC2A4\uD2F0\uCEE4 \uAFB8\uBBF8\uAE30 \u00B7 DECORATE',
+    decoHint:    '\uC2A4\uD2F0\uCEE4\uB97C \uB20C\uB7EC \uCD94\uAC00 \u00B7 \uB4DC\uB798\uADF8\uD574\uC11C \uC774\uB3D9<br>TAP TO ADD \u00B7 DRAG TO MOVE',
+    decoHead:    '\uAFB8\uBBF8\uAE30',
+    backFilter:  '\uD544\uD130\uB85C \u00B7 BACK',
+    undo:        '\uB418\uB3CC\uB9AC\uAE30 \u00B7 UNDO',
+    clear:       '\uC804\uCCB4 \uC0AD\uC81C \u00B7 CLEAR',
+    print:       '\uC778\uD654\uD558\uAE30 \u00B7 PRINT',
+    done:        '\uC644\uB8CC \u00B7 DONE',
+    comingSoon:  '\uC544\uC9C1 \uC900\uBE44 \uC911 \u00B7 COMING SOON',
+    shootHold:   '\uC6C0\uC9C1\uC774\uC9C0 \uB9C8\uC138\uC694',
+    shootReady:  n => n + '\uCEF7\uC744 \uCC0D\uC2B5\uB2C8\uB2E4',
+    printBusy:   '\uC778\uD654 \uC911\uC785\uB2C8\uB2E4',
+    printDone:   '\uC0AC\uC9C4\uC774 \uB098\uC654\uC5B4\uC694',
+    qrReady:     '\uB514\uC9C0\uD138 \uD30C\uC77C \uBC1B\uAE30',
+    qrPending:   '\uB514\uC9C0\uD138 \uD30C\uC77C \uC900\uBE44 \uC911',
+    qrFailed:    '\uB514\uC9C0\uD138 \uD30C\uC77C\uC744 \uB9CC\uB4E4\uC9C0 \uBABB\uD588\uC5B4\uC694',
+    sets: {},   // the ko labels live on SETS itself
+  },
+  ms: {
+    restart:     'Mula semula / RESTART',
+    frameTitle:  'Pilih filem anda',
+    nextWide:    'Seterusnya &nbsp;\u00B7&nbsp; NEXT',
+    next:        'Seterusnya \u00B7 NEXT',
+    camRetry:    'Cuba lagi \u00B7 RETRY',
+    shootStart:  'Mula ambil \u00B7 START',
+    shootCancel: 'Berhenti \u00B7 CANCEL',
+    selectTitle: 'Pilih satu untuk dicetak',
+    retake:      'Ambil semula \u00B7 RETAKE',
+    filterHead:  'Penapis',
+    decorate:    'Hias pelekat \u00B7 DECORATE',
+    decoHint:    'Tekan untuk tambah \u00B7 Seret untuk gerak<br>TAP TO ADD \u00B7 DRAG TO MOVE',
+    decoHead:    'Hiasan',
+    backFilter:  'Penapis \u00B7 BACK',
+    undo:        'Buat asal \u00B7 UNDO',
+    clear:       'Padam semua \u00B7 CLEAR',
+    print:       'Cetak \u00B7 PRINT',
+    done:        'Selesai \u00B7 DONE',
+    comingSoon:  'Belum sedia \u00B7 COMING SOON',
+    shootHold:   'Jangan bergerak',
+    shootReady:  n => 'Ambil ' + n + ' gambar',
+    printBusy:   'Sedang mencetak',
+    printDone:   'Gambar anda siap',
+    qrReady:     'Dapatkan fail digital',
+    qrPending:   'Menyediakan fail digital',
+    qrFailed:    'Fail digital tidak berjaya',
+    sets: { ko: 'KOREA / KOREAN', mascot: 'MASKOT / MASCOT', menu: 'MENU',
+            place: 'KUCHING', badge: 'LENCANA / BADGE', emoji: 'IKON / ICONS' },
+  },
+};
+
+// Falls back to Korean per key, so a half-finished translation shows the house
+// language rather than an empty button.
+function t(key, arg) {
+  const pack = STRINGS[state.lang] || STRINGS[CONFIG.voice] || STRINGS.ko;
+  const v = pack[key] != null ? pack[key] : STRINGS.ko[key];
+  return typeof v === 'function' ? v(arg) : v;
+}
+
+// The tab labels stay on SETS (they are part of the sticker data); only the ms
+// side is looked up, and only for the sets whose names are Korean.
+function setLabel(set) {
+  const m = (STRINGS[state.lang] || {}).sets;
+  return (m && m[set.id]) || set.label;
+}
+
+// Everything static is tagged data-i18n and swapped in one pass; the screens
+// that write their own copy re-run their updaters. Safe to call on any screen.
+function applyLang(lang) {
+  state.lang = STRINGS[lang] ? lang : CONFIG.voice;
+  document.documentElement.lang = state.lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
+  updateShootTitles();
+  renderTabs();   // the palette itself is language-free, only the tabs above it
+}
 
 /* ---------- sound ---------- */
 
@@ -942,8 +1054,8 @@ function cloneShot(i) {
 }
 
 function updateShootTitles() {
-  $('shoot-title-ko').textContent = running ? '움직이지 마세요' : CONFIG.shotsPerSession + '컷을 찍습니다';
-  $('shoot-title-en').textContent = running
+  $('shoot-title-lead').textContent = running ? t('shootHold') : t('shootReady', CONFIG.shotsPerSession);
+  $('shoot-title-sub').textContent = running
     ? 'HOLD STILL · ' + shots.length + '/' + CONFIG.shotsPerSession
     : CONFIG.countdownSeconds + '-SECOND COUNTDOWN BEFORE EACH SHOT';
   $('btn-shoot').style.display = running ? 'none' : '';
@@ -1683,7 +1795,7 @@ function renderTabs() {
   SETS.forEach((s, i) => {
     const d = document.createElement('div');
     d.className = 'set-tab' + (state.setIdx === i ? ' sel' : '');
-    d.textContent = s.label;
+    d.textContent = setLabel(s);
     d.addEventListener('click', () => { play('tap'); state.setIdx = i; renderTabs(); renderPalette(); });
     tabs.appendChild(d);
   });
@@ -1721,7 +1833,7 @@ function renderPalette() {
   })).then(() => {
     if (pal.children.length || SETS[state.setIdx] !== set) return;
     const note = document.createElement('div');
-    note.textContent = '아직 준비 중 · COMING SOON';
+    note.textContent = t('comingSoon');
     note.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;opacity:.4;padding:8px";
     pal.appendChild(note);
   });
@@ -1956,11 +2068,11 @@ function setQrState(mode, code) {
   // No blank cream square when there is nothing to scan.
   document.querySelector('.qr-slot').style.display = mode === 'failed' ? 'none' : 'flex';
   if (mode === 'ready') {
-    $('qr-text').innerHTML = '디지털 파일 받기<br>SCAN TO DOWNLOAD<br>CODE ' + code + ' · EXPIRES IN 24H';
+    $('qr-text').innerHTML = t('qrReady') + '<br>SCAN TO DOWNLOAD<br>CODE ' + code + ' · EXPIRES IN 24H';
   } else if (mode === 'pending') {
-    $('qr-text').innerHTML = '디지털 파일 준비 중<br>PREPARING YOUR DOWNLOAD…';
+    $('qr-text').innerHTML = t('qrPending') + '<br>PREPARING YOUR DOWNLOAD…';
   } else if (mode === 'failed') {
-    $('qr-text').innerHTML = '디지털 파일을 만들지 못했어요<br>DIGITAL COPY UNAVAILABLE<br>YOUR POLAROID IS STILL PRINTING';
+    $('qr-text').innerHTML = t('qrFailed') + '<br>DIGITAL COPY UNAVAILABLE<br>YOUR POLAROID IS STILL PRINTING';
   }
 }
 
@@ -1994,8 +2106,8 @@ async function startPrint() {
   $('print-done').classList.remove('on');
   $('print-spinner').classList.add('on');
   $('eject').classList.remove('on');
-  $('print-title-ko').textContent = '인화 중입니다';
-  $('print-title-en').textContent = 'DO NOT PULL THE FILM · 15 SECONDS';
+  $('print-title-lead').textContent = t('printBusy');
+  $('print-title-sub').textContent = 'DO NOT PULL THE FILM · 15 SECONDS';
   setQrState(CONFIG.showQr ? 'pending' : 'off');
   play('eject');   // 3.16 s, trimmed to land on the eject animation below
 
@@ -2008,8 +2120,8 @@ async function startPrint() {
   $('print-spinner').classList.remove('on');
   $('print-done').classList.add('on');
   $('eject').classList.add('on');
-  $('print-title-ko').textContent = '사진이 나왔어요';
-  $('print-title-en').textContent = 'TAKE YOUR POLAROID — HOLD THE EDGES, LET IT DEVELOP FOR 2 MINUTES';
+  $('print-title-lead').textContent = t('printDone');
+  $('print-title-sub').textContent = 'TAKE YOUR POLAROID — HOLD THE EDGES, LET IT DEVELOP FOR 2 MINUTES';
 
   const result = await uploaded;
   if (state.screen !== 'print') return;  // guest already restarted
@@ -2057,6 +2169,7 @@ function reset() {
   renderSlots();
   updateShootTitles();
   renderStickers();
+  applyLang(CONFIG.voice);
   show('attract');
 }
 
@@ -2112,7 +2225,7 @@ document.addEventListener('visibilitychange', () => {
 // anywhere else starts in CONFIG.voice, so an impatient guest is never blocked by
 // a choice they did not want to make.
 function startSession(lang) {
-  state.lang = lang;
+  applyLang(lang);
   audioUnlock();
   show('frame');
   // A beat after the screen turns over, so the welcome does not talk over the
@@ -2146,6 +2259,7 @@ $('btn-done').addEventListener('click', () => { play('confirm'); reset(); });
 // audioUnlock() then only has to resume it.
 audioInit();
 
+applyLang(CONFIG.voice);
 renderFrames();
 renderSlots();
 updateShootTitles();
