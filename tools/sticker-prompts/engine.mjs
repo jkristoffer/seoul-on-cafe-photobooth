@@ -188,6 +188,70 @@ const commands = {
     console.log(JSON.stringify(out, null, 2));
   },
 
+  /*
+   * Paste-ready prompt sheet.
+   *
+   * --mode=session (default) emits one style preamble followed by short per-sticker
+   * follow-ups. Chat image generators hold style far better across a conversation
+   * than they do across repeated self-contained prompts, and drift between separately
+   * prompted images is the main way a set stops looking like a set.
+   *
+   * --mode=standalone repeats the full style block every time, for one-shot use or
+   * an API loop where there is no conversation to carry the style.
+   */
+  export(flags) {
+    const items = select(flags);
+    const mode = flags.mode || 'session';
+    const src = getSource(flags.source || 'codex');
+
+    console.log(`# Sticker prompts — ${src.label} — ${mode} mode`);
+    console.log(`# style v${style.version} · ${items.length} stickers`);
+    console.log(`#`);
+    console.log(`# Save each result as the filename given above its prompt, into tmp/,`);
+    console.log(`# then map it in tools/stickers/ingest.map.json and run the ingest script.`);
+    console.log();
+
+    if (mode === 'standalone') {
+      items.forEach((item, i) => {
+        console.log(`## ${i + 1}. ${item.setId}-${item.id}.png`);
+        console.log('```');
+        console.log(src.render(item));
+        console.log('```');
+        console.log();
+      });
+      return;
+    }
+
+    console.log(`## 0. Style preamble — send this first, once per session`);
+    console.log('```');
+    console.log([
+      `I need a set of sticker images for a Korean-themed cafe photobooth. They must look like one set, so hold this style exactly for every image I ask for in this conversation:`,
+      ``,
+      `Medium: ${style.medium}.`,
+      `Line: ${style.lineWeight}.`,
+      `Shading: ${style.shading}.`,
+      `Color: ${style.paletteRule}.`,
+      `Composition: ${style.composition}.`,
+      `Background: ${style.background}.`,
+      `Mood: ${style.mood}.`,
+      `Constraints: ${style.text}. The result ${style.readability}.`,
+      `Avoid: ${style.negative.join(', ')}.`,
+      `Output: ${style.output.size} ${style.output.format}. ${style.output.note}`,
+      ``,
+      `Reply "ready" and wait. Then I will name one subject at a time. For each, generate exactly one image in the style above and nothing else.`,
+    ].join('\n'));
+    console.log('```');
+    console.log();
+
+    items.forEach((item, i) => {
+      console.log(`## ${i + 1}. ${item.setId}-${item.id}.png`);
+      console.log('```');
+      console.log(`Same style. Subject: ${subjectClause(item)}.`);
+      console.log('```');
+      console.log();
+    });
+  },
+
   /* Emits paste-ready sticker definitions for the SETS array in public/index.html. */
   stub(flags) {
     const items = select(flags);
@@ -206,7 +270,7 @@ const commands = {
 const { flags, rest } = parseArgs(process.argv.slice(2));
 const cmd = rest.shift() || 'list';
 if (!commands[cmd]) {
-  console.error(`usage: engine.mjs <list|prompt|batch|manifest|stub> [--set=<id>] [--source=claude|codex|raw]`);
+  console.error(`usage: engine.mjs <list|prompt|batch|export|manifest|stub> [--set=<id>] [--source=claude|codex|raw]`);
   process.exit(1);
 }
 try {

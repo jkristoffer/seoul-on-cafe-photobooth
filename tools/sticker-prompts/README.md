@@ -25,6 +25,21 @@ node tools/sticker-prompts/engine.mjs manifest > tools/sticker-prompts/manifest.
 node tools/sticker-prompts/engine.mjs stub --set=menu             # paste into SETS in public/index.html
 ```
 
+### Generating a set
+
+```sh
+node tools/sticker-prompts/engine.mjs export --source=codex > PROMPTS-codex.md
+```
+
+`--mode=session` (the default) emits one style preamble to send first, then a short
+follow-up per sticker. Chat image generators hold a style far better across a
+conversation than across repeated self-contained prompts, and drift between
+separately prompted images is the main way a set stops looking like a set. Use
+`--mode=standalone` for an API loop, where there is no conversation to carry style.
+
+Save each result under the filename printed above its prompt, map it in
+`tools/stickers/ingest.map.json`, and run `tools/stickers/ingest.mjs`.
+
 `--source` picks the adapter: `claude`, `codex`, or `raw` (bare prompt, for an image
 UI or an API call). Adapters change only the framing around the prompt — the body is
 byte-identical across sources, so art from two different generators still matches.

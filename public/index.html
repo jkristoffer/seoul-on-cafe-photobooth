@@ -515,6 +515,34 @@ const SETS = [
     { label: 'REC ●', style: tape('rgba(20,20,20,.75)', '#FF5A5A') },
     { label: 'SEOUL 서울', style: tape(GREEN, CREAM) },
   ] },
+  /* Accent sets. Entries are wired up ahead of their art: renderPalette drops any
+     swatch whose asset has not landed, so a partly generated set is simply a
+     shorter tray, and stickers appear as the files arrive. Sized at 64px — about
+     19% of the photo — so several compose on one polaroid, unlike the badges. */
+  { id: 'mascot', label: '마스코트 / MASCOT', items: [
+    { label: 'dog-sit',    style: image('/assets/stickers/mascot-dog-sit.png', 64) },
+    { label: 'dog-coffee', style: image('/assets/stickers/mascot-dog-coffee.png', 64) },
+    { label: 'dog-peek',   style: image('/assets/stickers/mascot-dog-peek.png', 64) },
+    { label: 'dog-heart',  style: image('/assets/stickers/mascot-dog-heart.png', 64) },
+    { label: 'dog-apron',  style: image('/assets/stickers/mascot-dog-apron.png', 64) },
+    { label: 'dog-sleep',  style: image('/assets/stickers/mascot-dog-sleep.png', 64) },
+  ] },
+  { id: 'menu', label: '메뉴 / MENU', items: [
+    { label: 'bingsu',      style: image('/assets/stickers/menu-bingsu.png', 64) },
+    { label: 'croffle',     style: image('/assets/stickers/menu-croffle.png', 64) },
+    { label: 'dalgona',     style: image('/assets/stickers/menu-dalgona.png', 60) },
+    { label: 'matcha',      style: image('/assets/stickers/menu-matcha.png', 64) },
+    { label: 'latte',       style: image('/assets/stickers/menu-latte.png', 64) },
+    { label: 'blossom-tea', style: image('/assets/stickers/menu-blossom-tea.png', 64) },
+    { label: 'croissant',   style: image('/assets/stickers/menu-croissant.png', 64) },
+    { label: 'bubble-tea',  style: image('/assets/stickers/menu-bubble-tea.png', 64) },
+  ] },
+  { id: 'place', label: '쿠칭 / KUCHING', items: [
+    { label: 'hibiscus',    style: image('/assets/stickers/place-hibiscus.png', 60) },
+    { label: 'cat-kuching', style: image('/assets/stickers/place-cat-kuching.png', 64) },
+    { label: 'hornbill',    style: image('/assets/stickers/place-hornbill.png', 64) },
+    { label: 'palm',        style: image('/assets/stickers/place-palm.png', 64) },
+  ] },
   { id: 'badge', label: '뱃지 / BADGE', items: [
     /* Merch-style die-cut badges. They carry their own lettering and dense detail,
        so they are placed large — roughly 45% of the 332px photo — and one or two
@@ -1243,6 +1271,19 @@ function renderPalette() {
     }
     d.addEventListener('click', () => addSticker(it));
     pal.appendChild(d);
+  });
+
+  // Swatches are removed asynchronously as failed loads resolve, so check after
+  // they settle rather than up front.
+  Promise.all(set.items.map(it => {
+    const d = it.style.draw;
+    return d && d.kind === 'image' ? stickerImage(d.src).ready : Promise.resolve(true);
+  })).then(() => {
+    if (pal.children.length || SETS[state.setIdx] !== set) return;
+    const note = document.createElement('div');
+    note.textContent = '아직 준비 중 · COMING SOON';
+    note.style.cssText = "font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.1em;opacity:.4;padding:8px";
+    pal.appendChild(note);
   });
 }
 
