@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { put } from '@vercel/blob';
+import { put, del } from '@vercel/blob';
 import { randomBytes } from 'node:crypto';
 import QRCode from 'qrcode';
+import { db, TTL_MS } from './_db.js';
 
 export const config = { maxDuration: 30 };
 
@@ -21,13 +22,17 @@ function originOf(req: VercelRequest): string {
   return `${Array.isArray(proto) ? proto[0] : proto}://${Array.isArray(host) ? host[0] : host}`;
 }
 
+function asText(v: unknown, max = 32): string | null {
+  return typeof v === 'string' && v.length > 0 && v.length <= max ? v : null;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ error: 'method_not_allowed' });
   }
 
-  const body = req.body as { image?: unknown } | undefined;
+  const body = req.body as Record<string, unknown> | undefined;
   const image = body?.image;
   if (typeof image !== 'string' || !image) {
     return res.status(400).json({ error: 'missing_image' });
@@ -49,16 +54,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const id = newId();
+  const now = Date.now();
+
+  let blobUrl: string;
   try {
-    await put(`photos/${id}.jpg`, bytes, {
+    const blob = await put(`photos/${id}.jpg`, bytes, {
       access: 'public',
       contentType: 'image/jpeg',
       addRandomSuffix: false,
       cacheControlMaxAge: 60 * 60 * 24,
     });
+    blobUrl = blob.url;
   } catch (err) {
     console.error('blob put failed', err);
     return res.status(502).json({ error: 'storage_unavailable' });
+  }
+
+  const { error } = await db().from('photos').insert({
+    id,
+    blob_url: blobUrl,
+    created_at: new Date(now).toISOString(),
+    expires_at: new Date(now + TTL_MS).toISOString(),
+    frame: asText(body?.frame),
+    filter: asText(body?.filter),
+    sticker_count: Number.isInteger(body?.stickerCount) ? (body!.stickerCount as number) : 0,
+    byte_size: bytes.length,
+  });
+
+  if (error) {
+    // Without a row the code is unresolvable, so don't leave the blob orphaned.
+    console.error('photo insert failed', error);
+    await del(blobUrl).catch(e => console.error('orphan blob cleanup failed', e));
+    return res.status(502).json({ error: 'record_failed' });
   }
 
   const shareUrl = `${originOf(req)}/p/${id}`;
