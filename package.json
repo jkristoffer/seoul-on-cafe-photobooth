@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "vercel dev",
     "build": "tsc --noEmit",
     "deploy": "vercel deploy --prod"
   },
