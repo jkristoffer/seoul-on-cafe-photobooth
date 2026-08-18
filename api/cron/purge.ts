@@ -12,8 +12,15 @@ export const config = { maxDuration: 60 };
  * limit) only means bytes linger a little after the link already went dead.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Fail closed: a deployed booth with no CRON_SECRET refuses to purge rather
+  // than leaving a public delete endpoint open. Vercel attaches this header to
+  // its own cron invocations whenever the variable is set.
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+  if (!secret) {
+    console.error('CRON_SECRET is not set — refusing to run purge');
+    return res.status(503).json({ error: 'not_configured' });
+  }
+  if (req.headers.authorization !== `Bearer ${secret}`) {
     return res.status(401).json({ error: 'unauthorized' });
   }
 
