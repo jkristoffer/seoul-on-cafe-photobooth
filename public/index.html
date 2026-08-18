@@ -959,12 +959,14 @@ async function composite() {
 /* ---------- print ---------- */
 
 function setQrState(mode, code) {
-  const on = CONFIG.showQr && mode === 'ready';
-  $('qr-card').style.display = CONFIG.showQr && mode !== 'off' ? '' : 'none';
-  $('qr-img').style.display = on ? '' : 'none';
-  $('qr-pending').style.display = CONFIG.showQr && mode === 'pending' ? '' : 'none';
+  // These elements are display:none in CSS, so clearing the inline style would
+  // fall back to hidden. Every branch must set an explicit display value.
+  const ready = CONFIG.showQr && mode === 'ready';
+  $('qr-card').style.display = CONFIG.showQr && mode !== 'off' ? 'flex' : 'none';
+  $('qr-img').style.display = ready ? 'block' : 'none';
+  $('qr-pending').style.display = CONFIG.showQr && mode === 'pending' ? 'block' : 'none';
   // No blank cream square when there is nothing to scan.
-  document.querySelector('.qr-slot').style.display = mode === 'failed' ? 'none' : '';
+  document.querySelector('.qr-slot').style.display = mode === 'failed' ? 'none' : 'flex';
   if (mode === 'ready') {
     $('qr-text').innerHTML = '디지털 파일 받기<br>SCAN TO DOWNLOAD<br>CODE ' + code + ' · EXPIRES IN 24H';
   } else if (mode === 'pending') {
