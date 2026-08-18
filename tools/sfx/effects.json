@@ -1,0 +1,53 @@
+{
+  "note": "Build-time only. Takes are auditioned from tmp/sfx/ and the winner is promoted by hand to public/assets/sfx/. The kiosk never calls this API.",
+  "defaults": {
+    "outputFormat": "mp3_44100_128",
+    "negative": "no music, no voice, no room reverb, no background ambience, no birdsong"
+  },
+  "effects": {
+    "shutter": {
+      "label": "Camera shutter",
+      "hook": "flash() in public/index.html — must land on the same frame as the white flash",
+      "durationSeconds": 1,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.7,
+          "text": "one single crisp mechanical camera shutter click, leaf shutter snap, dry and close-miked, tight transient, silence before and after"
+        },
+        {
+          "id": "b",
+          "promptInfluence": 0.9,
+          "text": "vintage instant camera shutter: a short spring-loaded clack with a faint metallic ring, recorded dry in a treated booth, one shot only"
+        },
+        {
+          "id": "c",
+          "promptInfluence": 0.5,
+          "text": "soft plastic toy-camera shutter click, light and friendly, low mechanical mass, single click, no tail"
+        }
+      ]
+    },
+    "eject": {
+      "label": "Print eject motor",
+      "hook": "startPrint() in public/index.html — loops under the 3.2s eject window",
+      "durationSeconds": 4,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.7,
+          "text": "instant film printer ejecting a photo: small DC motor whirr with rollers gripping and feeding stiff film, steady mid-pitch hum, mechanical, close-miked"
+        },
+        {
+          "id": "b",
+          "promptInfluence": 0.9,
+          "text": "polaroid camera motor drive pushing film out through rollers, gritty geared whirr that slows slightly at the end, dry and mechanical"
+        },
+        {
+          "id": "c",
+          "promptInfluence": 0.5,
+          "text": "quiet servo whirr of a photo printer feeding paper, smooth and continuous, gentle, unobtrusive at low volume"
+        }
+      ]
+    }
+  }
+}
