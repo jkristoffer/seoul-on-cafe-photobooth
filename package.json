@@ -1,0 +1,21 @@
+{
+  "name": "photobooth",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "tsc --noEmit",
+    "deploy": "vercel deploy --prod"
+  },
+  "dependencies": {
+    "@vercel/blob": "^2.8.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "@types/qrcode": "^1.5.6",
+    "@vercel/node": "^5.10.1",
+    "typescript": "^6.0.3",
+    "vercel": "^59.1.4"
+  }
+}

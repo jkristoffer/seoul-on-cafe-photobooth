@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/p/:id", "destination": "/p.html" }
+  ],
+  "crons": [
+    { "path": "/api/cron/purge", "schedule": "0 * * * *" }
+  ]
+}
