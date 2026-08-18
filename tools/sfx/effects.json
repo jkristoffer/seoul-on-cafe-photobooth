@@ -27,6 +27,69 @@
         }
       ]
     },
+    "tap": {
+      "label": "Selection tap",
+      "hook": "renderFrames / renderFilterGrid / renderStickers — the most frequent sound in the booth, easily 40x a session",
+      "durationSeconds": 0.5,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.8,
+          "text": "one very short muted wooden tick, like a fingernail on a hollow bamboo block, tiny and dry, no pitch, no tail, absolute silence after"
+        },
+        {
+          "id": "b",
+          "promptInfluence": 0.8,
+          "text": "a single soft rubber dome keyswitch press, muffled and low, close-miked, one press only, no release click"
+        }
+      ]
+    },
+    "place": {
+      "label": "Sticker placed",
+      "hook": "startDrag release — the guest has committed something to the photo, so it gets more body than a tap",
+      "durationSeconds": 0.8,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.8,
+          "text": "a soft felt thunk of a rubber stamp pressed onto thick paper, low and padded, brief, no reverb"
+        },
+        {
+          "id": "b",
+          "promptInfluence": 0.8,
+          "text": "a small sticker being pressed flat onto glossy card, a short tacky adhesive press, close and intimate"
+        }
+      ]
+    },
+    "confirm": {
+      "label": "Step advance",
+      "hook": "show() when moving forward a step — once per screen, so it can afford to be pitched and pleasant",
+      "durationSeconds": 1,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.6,
+          "text": "two soft mallet notes rising a fourth on a small wooden marimba, warm and dry, gentle, fading quickly"
+        },
+        {
+          "id": "b",
+          "promptInfluence": 0.6,
+          "text": "a single bright glass bell ping, short and clean, rising in brightness, no long shimmer tail"
+        }
+      ]
+    },
+    "back": {
+      "label": "Step back",
+      "hook": "the back control — the mirror of confirm, and must not sound like an error",
+      "durationSeconds": 1,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.6,
+          "text": "two soft mallet notes falling a fourth on a small wooden marimba, warm and dry, gentle, unhurried, not sad"
+        }
+      ]
+    },
     "eject": {
       "label": "Print eject motor",
       "hook": "startPrint() in public/index.html — loops under the 3.2s eject window",

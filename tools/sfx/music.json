@@ -1,0 +1,23 @@
+{
+  "note": "The booth sits inside a cafe that already plays music. A continuous booth loop means two playlists fighting in one room, and the booth loses. These are scoped to bounded moments — see README.",
+  "tracks": {
+    "attract": {
+      "label": "Attract loop",
+      "hook": "the idle screen only, ducked to about -30 LUFS, off entirely after cafe close",
+      "lengthMs": 30000,
+      "prompt": "sparse warm loop for an empty photo booth, soft nylon guitar arpeggio, muted rhodes pads, brushed light percussion, no melody hook, no vocals, unobtrusive, loops seamlessly, 78 bpm, major key, gentle and inviting"
+    },
+    "shoot": {
+      "label": "Shoot bed",
+      "hook": "startShoot() to the fourth shutter — roughly 16 s, bounded, the one moment the booth earns the right to be louder than the room",
+      "lengthMs": 16000,
+      "prompt": "bright bouncy K-pop photo booth backing track, clean funk guitar skank, punchy synth bass, handclaps, light four-on-the-floor, playful and building, no vocals, 112 bpm, ends on a clean resolved chord"
+    },
+    "shoot_alt": {
+      "label": "Shoot bed, softer",
+      "hook": "same slot, for a quieter room or a cafe that finds the K-pop bed too much",
+      "lengthMs": 16000,
+      "prompt": "warm retro city pop instrumental, mellow electric piano, soft slap bass, brushed drums, breezy and unhurried, no vocals, 100 bpm, tropical and relaxed, resolves cleanly at the end"
+    }
+  }
+}
