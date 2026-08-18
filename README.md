@@ -85,13 +85,35 @@ and offers a retry button, so a permissions prompt doesn't strand the session.
 
 ```bash
 npm install
-npx vercel link          # once
-npx vercel env pull      # fetches BLOB_READ_WRITE_TOKEN into .env.local
+npx vercel link                    # once
+npx vercel env pull .env.local     # non-sensitive vars only
 npx vercel dev --listen 3999
 ```
 
-Note there is intentionally **no `dev` npm script** — `vercel dev` runs the
-project's `dev` script, so defining one as `vercel dev` makes it recurse.
+Two things that will waste your afternoon otherwise:
+
+- **Sensitive variables cannot be pulled.** `SUPABASE_SECRET_KEY` and
+  `CRON_SECRET` are marked sensitive, so `env pull` returns them empty. Put them
+  in `.env` by hand. `vercel dev` reads `.env` *and* `.env.local`, `.env` wins,
+  and it rewrites `.env.local` on startup — so `.env` is the file that survives.
+  It must therefore also carry `BLOB_READ_WRITE_TOKEN`, or the blob calls lose
+  their credentials to the shadowing.
+- **There is intentionally no `dev` npm script.** `vercel dev` runs the project's
+  `dev` script, so defining one as `vercel dev` makes the CLI recurse and refuse
+  to start.
+
+Required variables: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`,
+`BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`.
+
+### Database changes
+
+```bash
+supabase link --project-ref <ref>
+supabase db push
+```
+
+Note that the project's new-style `sb_secret_…` API keys are not active; the
+functions authenticate with the legacy `service_role` JWT.
 
 `getUserMedia` needs a secure context. `localhost` counts; opening `index.html`
 over `file://` does not, and the kiosk will fall back to simulated shots.
@@ -104,9 +126,14 @@ Typecheck the functions with `npm run build` (`tsc --noEmit`).
 npm run deploy
 ```
 
+Live at **https://seoul-on-cafe.vercel.app**. That hostname comes from the Vercel
+project name, so renaming the project moves the booth; the QR encodes whatever
+host served the request, so it follows automatically.
+
 Requires a Blob store linked to the project (`npx vercel blob create-store
-photobooth --access public`) and **Deployment Protection turned off** — guests
-scanning the QR are anonymous and cannot log into Vercel.
+seoul-on-cafe --access public`). Deployment Protection covers deployment-specific
+URLs but not the production alias, so guests scanning a QR from production are
+fine — a QR generated from a *preview* deployment will demand a Vercel login.
 
 ## Kiosk operation
 
