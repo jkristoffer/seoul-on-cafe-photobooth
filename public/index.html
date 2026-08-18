@@ -808,6 +808,9 @@ const FACE = {
   model: '/models/face_landmarker.task',
   // ?facedebug paints the raw landmarks over the step-04 preview.
   debug: new URLSearchParams(location.search).has('facedebug'),
+  // ?maskdebug tints the smoothing mask instead — the effect itself is too
+  // subtle to judge by eye, but where it applies is not.
+  maskDebug: new URLSearchParams(location.search).has('maskdebug'),
 };
 
 let facePromise = null;
@@ -874,6 +877,30 @@ function drawFaceDebug(cv, src) {
   g.fillStyle = '#fff';
   g.font = '13px monospace';
   g.fillText(pts ? pts.length + ' LANDMARKS' : 'NO FACE', 7, 16);
+  g.restore();
+}
+
+// Spike-only: paint the smoothing mask so its placement can be checked.
+function drawMaskDebug(cv, src) {
+  const g = cv.getContext('2d');
+  const pts = faceLandmarksFor(src);
+  const mask = pts ? faceMaskData(pts, cv.width, cv.height) : null;
+  if (mask) {
+    const img = g.getImageData(0, 0, cv.width, cv.height);
+    const px = img.data;
+    for (let q = 0, i = 0; i < px.length; q++, i += 4) {
+      const a = mask[q] / 255 * .55;
+      px[i]     += (255 - px[i]) * a;
+      px[i + 2] += (255 - px[i + 2]) * a;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  g.save();
+  g.fillStyle = mask ? 'rgba(18,59,38,.88)' : 'rgba(170,30,30,.88)';
+  g.fillRect(0, 0, 152, 22);
+  g.fillStyle = '#fff';
+  g.font = '13px monospace';
+  g.fillText(mask ? 'MASK (magenta)' : 'NO FACE', 7, 16);
   g.restore();
 }
 
@@ -1139,6 +1166,7 @@ function renderPolaroids() {
     }
     cv.style.filter = filterCss();
     if (FACE.debug && id === 'pol-filter' && src) drawFaceDebug(cv, src);
+    if (FACE.maskDebug && id === 'pol-filter' && src) drawMaskDebug(cv, src);
     pol.querySelector('.date').textContent = todayStr();
   });
   renderFilterGrid();
