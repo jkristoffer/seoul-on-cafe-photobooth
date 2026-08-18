@@ -144,6 +144,8 @@
     font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: .14em; text-align: center; opacity: .85;
   }
   #cam-error.on { display: flex; }
+  #btn-cam-retry { border: 1px solid rgba(247,241,227,.45); padding: 12px 20px; cursor: pointer; letter-spacing: .12em; }
+  #btn-cam-retry:hover { background: rgba(247,241,227,.12); }
   .vf-inset { position: absolute; inset: 18px; border: 1px solid rgba(247,241,227,.35); pointer-events: none; }
   #countdown {
     position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
@@ -237,7 +239,10 @@
   #print-done { display: none; flex-direction: column; gap: 22px; }
   #print-done.on { display: flex; }
   #qr-card { display: flex; align-items: center; gap: 18px; background: rgba(247,241,227,.07); padding: 18px; }
-  #qr-grid { display: grid; grid-template-columns: repeat(13,1fr); width: 104px; height: 104px; background: var(--cream); padding: 6px; box-sizing: content-box; }
+  .qr-slot { position: relative; width: 116px; height: 116px; flex: none; background: var(--cream); display: flex; align-items: center; justify-content: center; }
+  #qr-img { width: 104px; height: 104px; display: none; image-rendering: pixelated; }
+  #qr-pending { display: none; }
+  #qr-pending .spin { width: 20px; height: 20px; border: 2px solid rgba(18,59,38,.25); border-top-color: var(--green); border-radius: 50%; animation: spinslow .9s linear infinite; }
   #qr-card .txt { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .1em; line-height: 2; opacity: .8; }
   #btn-done { background: var(--butter); color: var(--green); padding: 24px 0; text-align: center; font-size: 20px; font-weight: 700; cursor: pointer; }
   #btn-done:hover { background: #f0c65f; }
@@ -304,7 +309,10 @@
     </div>
     <div id="viewfinder">
       <video id="cam" autoplay playsinline muted></video>
-      <div id="cam-error">CAMERA UNAVAILABLE<br>SIMULATED SHOTS WILL BE USED</div>
+      <div id="cam-error">
+      <div>CAMERA UNAVAILABLE<br><span id="cam-error-why">SIMULATED SHOTS WILL BE USED</span></div>
+      <div id="btn-cam-retry">다시 시도 · RETRY</div>
+    </div>
       <div class="vf-inset"></div>
       <div id="countdown"></div>
       <div id="flash"></div>
@@ -376,8 +384,11 @@
       <div id="print-title-en"></div>
       <div id="print-done">
         <div id="qr-card">
-          <div id="qr-grid"></div>
-          <div class="txt">디지털 파일 받기<br>SCAN TO DOWNLOAD<br>EXPIRES IN 24H</div>
+          <div class="qr-slot">
+            <img id="qr-img" alt="QR code linking to your photo">
+            <div id="qr-pending"><div class="spin"></div></div>
+          </div>
+          <div class="txt" id="qr-text">디지털 파일 받기<br>SCAN TO DOWNLOAD<br>EXPIRES IN 24H</div>
         </div>
         <div id="btn-done">완료 · DONE</div>
       </div>
@@ -401,7 +412,7 @@
 <script>
 'use strict';
 
-const CONFIG = { shotsPerSession: 4, countdownSeconds: 3, showQr: true };
+const CONFIG = { shotsPerSession: 4, countdownSeconds: 3, showQr: true, idleResetSeconds: 120 };
 
 const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B';
 
@@ -422,10 +433,29 @@ const FRAMES = [
   { id: 'ink',   label: 'INK',           bg: '#141414', ink: CREAM },
 ];
 
-const pill  = (bg, fg, extra) => Object.assign({ background: bg, color: fg, padding: '10px 16px', fontFamily: "'IBM Plex Sans KR', sans-serif", fontWeight: 700, fontSize: '19px', borderRadius: '999px', whiteSpace: 'nowrap' }, extra || {});
-const glyph = (fg, size) => ({ color: fg, fontSize: (size || 40) + 'px', lineHeight: 1, fontFamily: "'Archivo', sans-serif", textShadow: '0 2px 6px rgba(0,0,0,.18)' });
-const tape  = (bg, fg) => ({ background: bg, color: fg, padding: '8px 20px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '.2em', fontWeight: 600, opacity: .92 });
-const box   = (bg, fg) => ({ background: bg, color: fg, padding: '9px 14px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '14px', letterSpacing: '.14em', fontWeight: 600 });
+/* Each sticker style ships two representations of the same thing: `css` for the
+   live DOM overlay, `draw` for baking it into the exported canvas. They must stay
+   in sync — the printed polaroid is what the guest keeps. */
+
+const pill = (bg, fg, extra) => {
+  const borderColor = extra && extra.border ? extra.border.split(' ').pop() : null;
+  return {
+    css: Object.assign({ background: bg, color: fg, padding: '10px 16px', fontFamily: "'IBM Plex Sans KR', sans-serif", fontWeight: 700, fontSize: '19px', borderRadius: '999px', whiteSpace: 'nowrap' }, extra || {}),
+    draw: { kind: 'box', bg, fg, borderColor, padX: 16, padY: 10, fontSize: 19, font: '700 19px "IBM Plex Sans KR", sans-serif', pill: true },
+  };
+};
+const glyph = (fg, size) => ({
+  css: { color: fg, fontSize: (size || 40) + 'px', lineHeight: 1, fontFamily: "'Archivo', sans-serif", textShadow: '0 2px 6px rgba(0,0,0,.18)' },
+  draw: { kind: 'glyph', fg, fontSize: size || 40, font: '400 ' + (size || 40) + 'px Archivo, sans-serif', shadow: true },
+});
+const tape = (bg, fg) => ({
+  css: { background: bg, color: fg, padding: '8px 20px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '.2em', fontWeight: 600, opacity: .92 },
+  draw: { kind: 'box', bg, fg, padX: 20, padY: 8, fontSize: 13, font: '600 13px "IBM Plex Mono", monospace', tracking: .2, alpha: .92 },
+});
+const box = (bg, fg) => ({
+  css: { background: bg, color: fg, padding: '9px 14px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '14px', letterSpacing: '.14em', fontWeight: 600 },
+  draw: { kind: 'box', bg, fg, padX: 14, padY: 9, fontSize: 14, font: '600 14px "IBM Plex Mono", monospace', tracking: .14 },
+});
 
 const SETS = [
   { id: 'ko', label: '한글 / KOREAN', items: [
@@ -483,8 +513,9 @@ const state = {
   filter: 'none',
   chosenIdx: -1,
   setIdx: 0,
-  stickers: [],   // { id, label, base, x, y, rot }
+  stickers: [],   // { id, label, base, draw, x, y, rot }
   seq: 0,
+  printing: false,
 };
 
 let shots = [];        // captured 640x640 canvases
@@ -516,6 +547,7 @@ function show(screen) {
   if (screen === 'select') renderPicks();
   if (screen === 'filter' || screen === 'decorate' || screen === 'print') renderPolaroids();
   if (screen === 'decorate') { renderTabs(); renderPalette(); renderStickers(); }
+  pokeIdle();
 }
 
 function renderSteps() {
@@ -531,7 +563,19 @@ function renderSteps() {
 
 /* ---------- camera ---------- */
 
+const CAM_REASONS = {
+  NotAllowedError: 'PERMISSION DENIED — ALLOW CAMERA ACCESS, THEN RETRY',
+  NotFoundError: 'NO CAMERA DETECTED — CHECK THE CONNECTION',
+  NotReadableError: 'CAMERA IN USE BY ANOTHER APP',
+};
+
 async function startCam() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    // getUserMedia is gated on a secure context; file:// and plain http fail here.
+    $('cam-error-why').textContent = 'REQUIRES HTTPS — SIMULATED SHOTS WILL BE USED';
+    $('cam-error').classList.add('on');
+    return;
+  }
   try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 1280, facingMode: 'user' }, audio: false });
     const v = $('cam');
@@ -539,6 +583,7 @@ async function startCam() {
     v.play().catch(() => {});
     $('cam-error').classList.remove('on');
   } catch (e) {
+    $('cam-error-why').textContent = CAM_REASONS[e && e.name] || 'SIMULATED SHOTS WILL BE USED';
     $('cam-error').classList.add('on');
   }
 }
@@ -745,7 +790,7 @@ function renderPalette() {
   (SETS[state.setIdx] || SETS[0]).items.forEach(it => {
     const d = document.createElement('div');
     d.textContent = it.label;
-    applyStyle(d, it.style);
+    applyStyle(d, it.style.css);
     d.addEventListener('click', () => addSticker(it));
     pal.appendChild(d);
   });
@@ -755,7 +800,8 @@ function addSticker(item) {
   state.stickers.push({
     id: ++state.seq,
     label: item.label,
-    base: item.style,
+    base: item.style.css,
+    draw: item.style.draw,
     x: 30 + Math.random() * 40,
     y: 28 + Math.random() * 44,
     rot: Math.random() * 16 - 8,
@@ -803,42 +849,179 @@ function startDrag(id, e, el) {
   window.addEventListener('pointerup', up);
 }
 
+/* ---------- compositing ----------
+   Everything the guest sees on the polaroid is DOM + CSS. To hand them a file we
+   have to redraw it on a canvas: same geometry as the .polaroid rule, scaled up. */
+
+const OUT = { scale: 3, w: 368, pad: 18, cap: 80, capPad: 4 };
+
+function roundRectPath(g, x, y, w, h, r) {
+  if (g.roundRect) { g.beginPath(); g.roundRect(x, y, w, h, r); return; }
+  const rr = Math.min(r, w / 2, h / 2);
+  g.beginPath();
+  g.moveTo(x + rr, y);
+  g.arcTo(x + w, y, x + w, y + h, rr);
+  g.arcTo(x + w, y + h, x, y + h, rr);
+  g.arcTo(x, y + h, x, y, rr);
+  g.arcTo(x, y, x + w, y, rr);
+  g.closePath();
+}
+
+function drawSticker(g, s) {
+  const d = s.draw;
+  if (!d) return;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+
+  if (d.kind === 'glyph') {
+    g.font = d.font;
+    g.letterSpacing = '0px';
+    g.fillStyle = d.fg;
+    if (d.shadow) { g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowOffsetY = 2; g.shadowBlur = 6; }
+    g.fillText(s.label, 0, 0);
+    g.shadowColor = 'transparent'; g.shadowOffsetY = 0; g.shadowBlur = 0;
+    return;
+  }
+
+  g.font = d.font;
+  g.letterSpacing = d.tracking ? d.tracking + 'em' : '0px';
+  const textW = g.measureText(s.label).width;
+  const w = textW + d.padX * 2;
+  const h = d.fontSize * 1.25 + d.padY * 2;
+
+  g.globalAlpha = d.alpha == null ? 1 : d.alpha;
+  g.fillStyle = d.bg;
+  roundRectPath(g, -w / 2, -h / 2, w, h, d.pill ? h / 2 : 0);
+  g.fill();
+  if (d.borderColor) { g.lineWidth = 2; g.strokeStyle = d.borderColor; g.stroke(); }
+
+  g.fillStyle = d.fg;
+  // Chrome's measureText counts trailing letter-spacing, which pushes centred
+  // text right by half a gap. Nudge back so the label sits true in the pill.
+  g.fillText(s.label, d.tracking ? -(d.tracking * d.fontSize) / 2 : 0, 0);
+  g.globalAlpha = 1;
+}
+
+async function composite() {
+  // Canvas text falls back to a system font unless the webfonts have landed.
+  try { await document.fonts.ready; } catch (e) { /* non-fatal */ }
+
+  const S = OUT.scale, W = OUT.w, PAD = OUT.pad;
+  const PHOTO = W - PAD * 2;
+  const H = PAD + PHOTO + OUT.cap;
+  const f = frameDef();
+
+  const c = document.createElement('canvas');
+  c.width = W * S; c.height = H * S;
+  const g = c.getContext('2d');
+  g.scale(S, S);
+
+  g.fillStyle = f.bg;
+  g.fillRect(0, 0, W, H);
+
+  const src = shots[state.chosenIdx];
+  if (src) {
+    g.save();
+    g.filter = filterCss();
+    g.drawImage(src, PAD, PAD, PHOTO, PHOTO);
+    g.restore();
+  }
+
+  // Stickers are clipped to the photo window, matching the DOM overlay's bounds.
+  g.save();
+  g.beginPath();
+  g.rect(PAD, PAD, PHOTO, PHOTO);
+  g.clip();
+  state.stickers.forEach(s => {
+    g.save();
+    g.translate(PAD + PHOTO * s.x / 100, PAD + PHOTO * s.y / 100);
+    g.rotate(s.rot * Math.PI / 180);
+    drawSticker(g, s);
+    g.restore();
+  });
+  g.restore();
+
+  const cy = PAD + PHOTO + OUT.capPad + (OUT.cap - OUT.capPad) / 2;
+  g.font = '500 12px "IBM Plex Mono", monospace';
+  g.letterSpacing = '0.16em';
+  g.textBaseline = 'middle';
+  g.fillStyle = f.ink;
+  g.textAlign = 'left';
+  g.fillText('CAFE ON SEOUL', PAD, cy);
+  g.globalAlpha = .5;
+  g.textAlign = 'right';
+  g.fillText(todayStr(), W - PAD, cy);
+  g.globalAlpha = 1;
+
+  return c;
+}
+
 /* ---------- print ---------- */
 
-function qrCells() {
-  const grid = $('qr-grid');
-  if (grid.childElementCount) return;
-  let seed = 7;
-  for (let i = 0; i < 169; i++) {
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    const r = Math.floor(i / 13), c = i % 13;
-    const finder = (r < 3 && c < 3) || (r < 3 && c > 9) || (r > 9 && c < 3);
-    const on = finder || (seed / 2147483648) > 0.52;
-    const d = document.createElement('div');
-    d.style.background = on ? GREEN : 'transparent';
-    grid.appendChild(d);
+function setQrState(mode, code) {
+  const on = CONFIG.showQr && mode === 'ready';
+  $('qr-card').style.display = CONFIG.showQr && mode !== 'off' ? '' : 'none';
+  $('qr-img').style.display = on ? '' : 'none';
+  $('qr-pending').style.display = CONFIG.showQr && mode === 'pending' ? '' : 'none';
+  // No blank cream square when there is nothing to scan.
+  document.querySelector('.qr-slot').style.display = mode === 'failed' ? 'none' : '';
+  if (mode === 'ready') {
+    $('qr-text').innerHTML = '디지털 파일 받기<br>SCAN TO DOWNLOAD<br>CODE ' + code + ' · EXPIRES IN 24H';
+  } else if (mode === 'pending') {
+    $('qr-text').innerHTML = '디지털 파일 준비 중<br>PREPARING YOUR DOWNLOAD…';
+  } else if (mode === 'failed') {
+    $('qr-text').innerHTML = '디지털 파일을 만들지 못했어요<br>DIGITAL COPY UNAVAILABLE<br>YOUR POLAROID IS STILL PRINTING';
   }
 }
 
-function startPrint() {
+async function uploadPhoto() {
+  const canvas = await composite();
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ image: dataUrl }),
+  });
+  if (!res.ok) throw new Error('upload failed: ' + res.status);
+  return res.json();
+}
+
+async function startPrint() {
+  if (state.printing) return;
+  state.printing = true;
   show('print');
+
   const host = $('print-stickers');
   host.innerHTML = '';
   state.stickers.forEach(s => host.appendChild(stickerEl(s, false)));
-  $('qr-card').style.display = CONFIG.showQr ? '' : 'none';
-  qrCells();
+
   $('print-done').classList.remove('on');
   $('print-spinner').classList.add('on');
   $('eject').classList.remove('on');
   $('print-title-ko').textContent = '인화 중입니다';
   $('print-title-en').textContent = 'DO NOT PULL THE FILM · 15 SECONDS';
-  timers.push(setTimeout(() => {
-    $('print-spinner').classList.remove('on');
-    $('print-done').classList.add('on');
-    $('eject').classList.add('on');
-    $('print-title-ko').textContent = '사진이 나왔어요';
-    $('print-title-en').textContent = 'TAKE YOUR POLAROID — HOLD THE EDGES, LET IT DEVELOP FOR 2 MINUTES';
-  }, 3200));
+  setQrState(CONFIG.showQr ? 'pending' : 'off');
+
+  // The ceremony and the upload run together: the polaroid always ejects on
+  // schedule even if the network is slow or down.
+  const uploaded = uploadPhoto().catch(err => { console.error(err); return null; });
+  const ejected = new Promise(r => timers.push(setTimeout(r, 3200)));
+
+  await ejected;
+  $('print-spinner').classList.remove('on');
+  $('print-done').classList.add('on');
+  $('eject').classList.add('on');
+  $('print-title-ko').textContent = '사진이 나왔어요';
+  $('print-title-en').textContent = 'TAKE YOUR POLAROID — HOLD THE EDGES, LET IT DEVELOP FOR 2 MINUTES';
+
+  const result = await uploaded;
+  if (state.screen !== 'print') return;  // guest already restarted
+  if (result) {
+    $('qr-img').src = result.qr;
+    setQrState('ready', result.id);
+  } else {
+    setQrState('failed');
+  }
 }
 
 /* ---------- frame choice ---------- */
@@ -870,7 +1053,8 @@ function reset() {
   running = false; stopLoop();
   timers.forEach(clearTimeout); timers.length = 0;
   shots = [];
-  Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [] });
+  Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [], printing: false });
+  $('qr-img').removeAttribute('src');
   setCount(null);
   renderFrames();
   renderSlots();
@@ -887,12 +1071,49 @@ function fitStage() {
 }
 window.addEventListener('resize', fitStage);
 
+/* ---------- kiosk hygiene ----------
+   An unattended booth has to recover on its own: a guest who walks away mid-flow
+   must not leave their face on screen for the next person. */
+
+let idleTimer = null;
+
+function idleExempt() {
+  // Never yank the screen out from under an active shoot or a printing polaroid.
+  return state.screen === 'attract' || running || state.printing;
+}
+
+function pokeIdle() {
+  if (idleTimer) clearTimeout(idleTimer);
+  if (idleExempt()) return;
+  idleTimer = setTimeout(() => { if (!idleExempt()) reset(); }, CONFIG.idleResetSeconds * 1000);
+}
+
+['pointerdown', 'keydown', 'touchstart'].forEach(ev =>
+  window.addEventListener(ev, pokeIdle, { passive: true }));
+
+let wakeLock = null;
+
+async function keepAwake() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) {
+    // Denied or unsupported — the booth still works, the screen may just sleep.
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !wakeLock) keepAwake();
+});
+
 /* ---------- wire up ---------- */
 
 $('scr-attract').addEventListener('click', () => show('frame'));
 $('restart').addEventListener('click', reset);
 $('btn-frame-next').addEventListener('click', () => { shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
 $('btn-shoot').addEventListener('click', startShoot);
+$('btn-cam-retry').addEventListener('click', () => { stopCam(); startCam(); });
 $('btn-cancel-shoot').addEventListener('click', cancelShoot);
 $('btn-retake').addEventListener('click', () => { running = false; stopLoop(); shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
 $('btn-select-next').addEventListener('click', () => { if (state.chosenIdx >= 0) show('filter'); });
@@ -907,6 +1128,7 @@ renderFrames();
 renderSlots();
 updateShootTitles();
 fitStage();
+keepAwake();
 show('attract');
 </script>
 </body>
