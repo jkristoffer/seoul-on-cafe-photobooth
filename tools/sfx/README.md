@@ -65,17 +65,42 @@ so the threshold has to be measured rather than assumed.
 Judge a take on its waveform, not its description. Lead silence is latency, and a
 "single click" that rings for 600 ms will stack tails across a four-shot session.
 
+## The countdown beeps are synthesised, not generated
+
+`count.mp3` and `count_go.mp3` come from ffmpeg's sine generator, not from the API.
+Asked for a 100 ms pip, the model returned sustained tones of 460–800 ms — four to
+five times too long, and near 0 dBFS. A countdown pip has exactly two requirements,
+an exact length and an exact pitch, and both are things a synth gives you for free
+and a generative model will not give you reliably at any prompt.
+
+```sh
+ffmpeg -f lavfi -i "sine=frequency=880:duration=0.10:sample_rate=44100" \
+  -af "afade=t=in:st=0:d=0.004,afade=t=out:st=0.035:d=0.065,volume=0.7" count-synth.mp3
+```
+
+880 Hz (A5) for the pip on 3 and 2, 1318.5 Hz (E6) for the final — a fifth up, the
+same interval `confirm.mp3` rises by, so the booth's pitched sounds belong to one
+family.
+
 ## Levels
 
 Targets differ by role, because these do not all compete with the room equally:
 
-| Asset | LUFS | Why |
+| Asset | Target | Why |
 |---|---|---|
-| `shutter` | −16 | Has to cut through a cafe. |
-| `place`, `confirm`, `back` | −17 | Present but not startling. |
-| `tap` | −18 | Fires 40× a session. |
-| `eject` | −18 | Sustained, sits under the moment. |
-| attract music | −30 | If it is audible over the cafe playlist it is too loud. |
+| `shutter` | −16 LUFS | Has to cut through a cafe. |
+| `place`, `confirm`, `back` | −17 LUFS | Present but not startling. |
+| `tap` | −18 LUFS | Fires 40× a session. |
+| `eject` | −18 LUFS | Sustained, sits under the moment. |
+| `voice/*` | −16 LUFS | Speech has to stay intelligible over the room. |
+| `music/shoot` | −20 LUFS | Under the beeps and the shutter, never over them. |
+| `music/attract` | −30 LUFS | If it is audible over the cafe playlist it is too loud. |
+
+**LUFS is meaningless under about 400 ms** — `ebur128` returns its −70 gate floor
+for a 100 ms pip, and `loudnorm` cannot target what it cannot measure. The two
+beeps are peak-normalised instead, to −9 and −7 dBFS. They are pure tones, which
+read louder than broadband material at equal peak, so they sit lower than the
+numbers suggest.
 
 ## Voice
 
@@ -89,11 +114,35 @@ which one is acceptable where. Current picks: Jessica for Korean, Lily for Malay
 with an English gloss. Read the rules before adding a line — the constraint that
 matters most is that a line must survive its 200th play in a small room.
 
+**One line ships**: the welcome, on `show('frame')` from attract, as
+`voice/ko-welcome.mp3` and `voice/ms-welcome.mp3`. Everything else in `lines.json`
+is written but unrecorded. The booth says hello and then stays quiet, which is also
+why the countdown is beeps — a voice counting to three four times a session is the
+fastest way to make a booth tiresome.
+
+The retired `countdown` line is kept in `lines.json` on purpose: three counted
+numbers expose a voice's rhythm and accent faster than any other phrase, so it is
+the right thing to audition a replacement voice with.
+
 ## Music
 
-Generated, but hold it. The booth stands inside a cafe that already plays music,
-and a continuous loop puts two playlists in one room, out of key and out of tempo
-with each other. The booth is the newcomer and the louder one at close range, so
-the booth is what sounds wrong. The defensible uses are bounded: a heavily ducked
-attract loop, and a 16-second bed across the shoot sequence. Decide it in the
-actual room with the actual playlist running.
+Two beds ship, both scoped to bounded moments — never a loop running under the
+whole session, because the booth stands inside a cafe that already plays music and
+would be the one sounding wrong.
+
+- `music/attract.mp3` — the idle screen only, at −30 LUFS.
+- `music/shoot.mp3` — `startShoot()` to the fourth shutter, 16 s, at −20 LUFS.
+
+The attract bed is a **seamless loop**, which the generator does not produce on its
+own: a 30 s track was folded into 28 s by crossfading its last two seconds over its
+first two, so the wrap is inaudible.
+
+```sh
+ffmpeg -i attract-raw.mp3 -filter_complex \
+  "[0:a]atrim=0:2,asetpts=PTS-STARTPTS[head];[0:a]atrim=2,asetpts=PTS-STARTPTS[body];\
+   [body][head]acrossfade=d=2:c1=tri:c2=tri,loudnorm=I=-30:TP=-3[out]" -map "[out]" attract.mp3
+```
+
+Both levels still want confirming in the actual room with the actual cafe playlist
+running. −30 LUFS is a considered guess, not a measurement.
+

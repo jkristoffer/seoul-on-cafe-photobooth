@@ -27,6 +27,35 @@
         }
       ]
     },
+    "count": {
+      "label": "Countdown beep",
+      "hook": "setCount() in frame() — fires on 3 and on 2",
+      "durationSeconds": 0.5,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.9,
+          "text": "a single short electronic countdown beep, clean sine tone, mid pitch, 100 milliseconds, dry studio recording, no reverb, absolute silence before and after"
+        },
+        {
+          "id": "b",
+          "promptInfluence": 0.9,
+          "text": "one crisp digital timer pip, pure tone, brief and neutral, like a broadcast countdown clock, no echo"
+        }
+      ]
+    },
+    "count_go": {
+      "label": "Countdown final beep",
+      "hook": "the 1 — higher and longer, so the guest knows the shutter is next",
+      "durationSeconds": 0.8,
+      "takes": [
+        {
+          "id": "a",
+          "promptInfluence": 0.9,
+          "text": "a single higher-pitched electronic beep, clean sine tone, slightly longer than a countdown pip, resolving upward, dry, no reverb"
+        }
+      ]
+    },
     "tap": {
       "label": "Selection tap",
       "hook": "renderFrames / renderFilterGrid / renderStickers — the most frequent sound in the booth, easily 40x a session",

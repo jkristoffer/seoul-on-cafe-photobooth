@@ -21,8 +21,8 @@
 
   "lines": {
     "wake": {
-      "role": "intro",
-      "hook": "show('frame') from attract — the first thing a guest ever hears, and the gesture that unlocks audio",
+      "role": "shipped",
+      "hook": "SHIPPED as voice/ko-welcome.mp3 and voice/ms-welcome.mp3 — fires on show('frame') from attract. The first thing a guest ever hears, and the only voice line in the booth.",
       "ko": "[warmly] 어서 오세요! 오늘 잘 나올 것 같은데요?",
       "ko_gloss": "Welcome! I have a feeling these are going to come out well.",
       "ms": "[warmly] Selamat datang! Rasanya cantik ni.",
@@ -45,8 +45,8 @@
       "ms_gloss": "Four photos, yeah? Ready?"
     },
     "countdown": {
-      "role": "core",
-      "hook": "setCount() in frame() — the one line that must be perfectly timed to the 3-2-1",
+      "role": "retired",
+      "hook": "NOT USED — the countdown is beeps (count.mp3 / count_go.mp3). Kept only as the reference line for auditioning a new voice, since three counted numbers expose a voice's rhythm and accent faster than any other phrase.",
       "ko": "하나... 둘... 셋!",
       "ko_gloss": "One... two... three!",
       "ms": "Satu... dua... tiga!",
