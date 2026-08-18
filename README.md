@@ -149,6 +149,46 @@ cafe-on-seoul --access public`). Deployment Protection covers deployment-specifi
 URLs but not the production alias, so guests scanning a QR from production are
 fine — a QR generated from a *preview* deployment will demand a Vercel login.
 
+## Sound
+
+Every sound is a static asset under `public/assets/sfx/`, generated once by
+`tools/sfx` and committed. The kiosk never calls a speech or audio API at
+runtime — see `tools/sfx/README.md` for how the assets are made and why the raw
+output of a generator is never shippable.
+
+Effects are decoded into `AudioBuffer`s at startup and played through a Web Audio
+graph rather than `<audio>` elements, because the shutter has to land on the same
+frame as the flash and an element drifts by tens of milliseconds on first play. A
+missing file is never fatal: `play()` no-ops on a buffer that failed to load.
+
+Two things are easy to get wrong here:
+
+- **Nothing plays before a gesture.** The autoplay policy means the attract loop
+  cannot start on first load. It comes up when the first session ends and the
+  booth returns to attract with audio already unlocked.
+- **The countdown beep is gated on the countdown, not on the digit.** During the
+  700 ms gap between shots the display already shows the next `3`, so beeping
+  whenever the number changes puts a pip barely 100 ms behind the shutter, which
+  sounds like a stutter. `countBeep()` only fires inside the real countdown
+  window and is latched off at each capture.
+
+`CONFIG` carries `sound`, `volume`, `music` and `musicVolume`, so staff can kill
+the audio or just the music without touching the assets.
+
+## Language
+
+The attract screen asks the guest to pick Korean or Bahasa Malaysia. The picker
+chooses **the voice only** — the interface stays bilingual Korean/English on every
+screen either way — and it exists in that spot because the autoplay policy needs a
+gesture before any sound can play, so the choice may as well be the start control.
+
+Tapping anywhere else on the attract screen starts the session in `CONFIG.voice`,
+so a guest who does not want to make a choice is never blocked by one. Guessing
+from `navigator.language` would be wrong for most guests on a shared kiosk.
+
+The welcome is the only voice line in the booth. The rest of the script is written
+in `tools/sfx/lines.json` but deliberately unrecorded.
+
 ## Kiosk operation
 
 - `CONFIG` at the top of the script controls shots per session, countdown length,

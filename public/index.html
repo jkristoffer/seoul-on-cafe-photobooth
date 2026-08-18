@@ -95,6 +95,30 @@
     padding: 24px 40px; align-self: flex-start;
     font-size: 22px; font-weight: 700; letter-spacing: .04em;
   }
+  /* The picker chooses the voice, not the interface — the screens stay bilingual
+     either way. It is also the gesture that unlocks audio, so it has to be the
+     start control rather than a setting tucked away somewhere. */
+  .attract-langs { display: flex; gap: 18px; align-self: flex-start; animation: pulse 2.6s ease-in-out infinite; }
+  .lang {
+    display: flex; align-items: center; gap: 18px;
+    min-width: 268px; min-height: 116px; padding: 22px 30px;
+    background: var(--butter); color: var(--green);
+    border: 0; border-radius: 2px; cursor: pointer; text-align: left;
+    font-family: inherit;
+    transition: transform .12s ease, box-shadow .12s ease;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .lang:nth-child(2) { background: var(--cream); }
+  .lang:active { transform: translateY(2px) scale(.985); }
+  .lang:focus-visible { outline: 3px solid var(--cream); outline-offset: 4px; }
+  .lang-flag { font-size: 46px; line-height: 1; }
+  .lang-text { display: flex; flex-direction: column; gap: 5px; }
+  .lang-name { font-size: 27px; font-weight: 700; letter-spacing: .02em; }
+  .lang-go { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .13em; opacity: .72; }
+  .attract-cta-note {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    letter-spacing: .13em; opacity: .5;
+  }
   .attract-polaroid { position: relative; width: 290px; height: 348px; }
   .attract-polaroid > div {
     position: absolute; inset: 0; background: var(--paper);
@@ -282,7 +306,23 @@
         <div class="attract-sub">INSTANT FILM BOOTH</div>
       </div>
       <div class="attract-info">4컷 촬영 · 필터 · 스티커 · 폴라로이드 인화<br>4 SHOTS · FILTER · STICKERS · ONE POLAROID</div>
-      <div class="attract-cta">화면을 눌러 시작 &nbsp;·&nbsp; TAP TO START</div>
+      <div class="attract-langs">
+        <button class="lang" data-lang="ko" type="button">
+          <span class="lang-flag" aria-hidden="true">🇰🇷</span>
+          <span class="lang-text">
+            <span class="lang-name">한국어</span>
+            <span class="lang-go">눌러서 시작</span>
+          </span>
+        </button>
+        <button class="lang" data-lang="ms" type="button">
+          <span class="lang-flag" aria-hidden="true">🇲🇾</span>
+          <span class="lang-text">
+            <span class="lang-name">Bahasa</span>
+            <span class="lang-go">Tekan untuk mula</span>
+          </span>
+        </button>
+      </div>
+      <div class="attract-cta-note">화면 아무 곳이나 눌러도 시작해요 &nbsp;·&nbsp; OR TAP ANYWHERE TO START</div>
     </div>
     <div class="attract-polaroid">
       <div>
@@ -413,9 +453,104 @@
 <script>
 'use strict';
 
-const CONFIG = { shotsPerSession: 4, countdownSeconds: 3, showQr: true, idleResetSeconds: 120 };
+const CONFIG = {
+  shotsPerSession: 4, countdownSeconds: 3, showQr: true, idleResetSeconds: 120,
+  sound: true,        // master switch for everything audible
+  volume: 1,
+  music: true,        // the two beds, independently killable
+  musicVolume: 1,
+  voice: 'ko',        // welcome language when a guest taps without choosing one
+};
 
 const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B';
+
+/* ---------- sound ---------- */
+
+// Every sound is a static asset built once by tools/sfx and committed. Nothing
+// here is synthesised or fetched from an API at runtime, and a missing file is
+// never fatal: play() no-ops on a buffer that failed to load.
+const SFX = {
+  tap:      'assets/sfx/tap.mp3',
+  place:    'assets/sfx/place.mp3',
+  confirm:  'assets/sfx/confirm.mp3',
+  back:     'assets/sfx/back.mp3',
+  count:    'assets/sfx/count.mp3',
+  count_go: 'assets/sfx/count_go.mp3',
+  shutter:  'assets/sfx/shutter.mp3',
+  eject:    'assets/sfx/eject.mp3',
+  'voice-ko': 'assets/sfx/voice/ko-welcome.mp3',
+  'voice-ms': 'assets/sfx/voice/ms-welcome.mp3',
+  'music-attract': 'assets/sfx/music/attract.mp3',
+  'music-shoot':   'assets/sfx/music/shoot.mp3',
+};
+
+const audio = { ctx: null, master: null, musicBus: null, buffers: {}, music: null, musicName: null };
+
+function audioInit() {
+  if (audio.ctx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  audio.ctx = new AC();
+  audio.master = audio.ctx.createGain();
+  audio.master.gain.value = CONFIG.volume;
+  audio.master.connect(audio.ctx.destination);
+  audio.musicBus = audio.ctx.createGain();
+  audio.musicBus.gain.value = CONFIG.musicVolume;
+  audio.musicBus.connect(audio.master);
+
+  // Decoded up front, and played as buffer sources rather than <audio> elements,
+  // so the shutter lands on the same frame as the flash. An <audio> element
+  // drifts by tens of milliseconds on its first play, which is exactly the
+  // moment that matters.
+  Object.entries(SFX).forEach(([name, url]) => {
+    fetch(url)
+      .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then(b => audio.ctx.decodeAudioData(b))
+      .then(buf => { audio.buffers[name] = buf; })
+      .catch(e => console.warn('sound unavailable:', name, e.message));
+  });
+}
+
+// Autoplay policy: no sound until a gesture. The language picker on the attract
+// screen is that gesture, which is why it doubles as the start control.
+function audioUnlock() {
+  audioInit();
+  if (audio.ctx && audio.ctx.state === 'suspended') audio.ctx.resume();
+}
+
+function play(name, opts = {}) {
+  if (!CONFIG.sound || !audio.ctx) return null;
+  const buf = audio.buffers[name];
+  if (!buf) return null;
+  const src = audio.ctx.createBufferSource();
+  src.buffer = buf;
+  src.loop = !!opts.loop;
+  const g = audio.ctx.createGain();
+  g.gain.value = opts.gain == null ? 1 : opts.gain;
+  src.connect(g);
+  g.connect(opts.music ? audio.musicBus : audio.master);
+  src.start();
+  return { src, g };
+}
+
+function playMusic(name, loop) {
+  if (!CONFIG.sound || !CONFIG.music || !audio.ctx) return;
+  if (audio.musicName === name) return;
+  stopMusic(0.15);
+  audio.music = play(name, { loop, music: true });
+  audio.musicName = audio.music ? name : null;
+}
+
+function stopMusic(fade = 0.4) {
+  if (!audio.music) { audio.musicName = null; return; }
+  const { src, g } = audio.music;
+  const t = audio.ctx.currentTime;
+  g.gain.setValueAtTime(g.gain.value, t);
+  g.gain.linearRampToValueAtTime(0.0001, t + fade);
+  try { src.stop(t + fade); } catch (e) { /* already stopped */ }
+  audio.music = null;
+  audio.musicName = null;
+}
 
 const FILTERS = [
   { id: 'none',  label: 'ORIGINAL',  css: 'none', sw: 'linear-gradient(135deg,#cfc6b3,#ece4d3)' },
@@ -613,6 +748,7 @@ const state = {
   stickers: [],   // { id, label, base, draw, x, y, rot }
   seq: 0,
   printing: false,
+  lang: CONFIG.voice,   // which welcome plays; chosen on the attract screen
 };
 
 let shots = [];        // captured 640x640 canvases
@@ -644,6 +780,13 @@ function show(screen) {
   if (screen === 'select') renderPicks();
   if (screen === 'filter' || screen === 'decorate' || screen === 'print') renderPolaroids();
   if (screen === 'decorate') { renderTabs(); renderPalette(); renderStickers(); }
+
+  // The attract bed is the only looping music. It cannot start on first load —
+  // no gesture has happened yet — so it comes up when a session ends and the
+  // booth returns here with audio already unlocked.
+  if (screen === 'attract') playMusic('music-attract', true);
+  else if (audio.musicName === 'music-attract') stopMusic();
+
   pokeIdle();
 }
 
@@ -755,11 +898,25 @@ function setCount(n) {
   else { el.classList.add('on'); el.textContent = n; }
 }
 
+// frame() ticks every 120 ms and re-sets the same number repeatedly, so the beep
+// is tied to the number *changing*. It is deliberately separate from setCount:
+// during the 700 ms gap between shots the display already shows the next "3"
+// while the countdown has not restarted, and beeping there lands a pip barely
+// 100 ms behind the shutter, which sounds like a stutter rather than a count.
+let lastBeep = null;
+
+function countBeep(n) {
+  if (n === lastBeep) return;
+  lastBeep = n;
+  if (n != null) play(n === 1 ? 'count_go' : 'count');
+}
+
 function flash() {
   const el = $('flash');
   el.classList.remove('on');
   void el.offsetWidth; // restart animation
   el.classList.add('on');
+  play('shutter');
 }
 
 function startShoot() {
@@ -771,7 +928,9 @@ function startShoot() {
   nextAt = Date.now() + CONFIG.countdownSeconds * 1000;
   renderSlots();
   updateShootTitles();
+  playMusic('music-shoot', false);   // 16 s bed, roughly the length of four shots
   setCount(CONFIG.countdownSeconds);
+  countBeep(CONFIG.countdownSeconds);
   startLoop();
 }
 
@@ -782,17 +941,21 @@ function frame() {
   if (!running) { stopLoop(); return; }
   const left = nextAt - Date.now();
   if (left > 0) {
-    setCount(Math.min(CONFIG.countdownSeconds, Math.max(1, Math.ceil(left / 1000))));
+    const n = Math.min(CONFIG.countdownSeconds, Math.max(1, Math.ceil(left / 1000)));
+    if (left <= CONFIG.countdownSeconds * 1000) countBeep(n);
+    setCount(n);
     return;
   }
   try { shots.push(capture(shotIdx + 1)); } catch (e) { console.warn('capture failed', e); }
   shotIdx++;
   setCount(null);
+  countBeep(null);
   flash();
   renderSlots();
   updateShootTitles();
   if (shotIdx >= CONFIG.shotsPerSession) {
     running = false; stopLoop();
+    stopMusic(0.8);
     timers.push(setTimeout(() => { updateShootTitles(); show('select'); }, 700));
     return;
   }
@@ -801,8 +964,10 @@ function frame() {
 
 function cancelShoot() {
   running = false; stopLoop();
+  stopMusic(0.3);
   shots = [];
   setCount(null);
+  countBeep(null);
   renderSlots();
   updateShootTitles();
 }
@@ -820,7 +985,7 @@ function renderPicks() {
     b.className = 'badge';
     b.textContent = '0' + (i + 1);
     d.appendChild(b);
-    d.addEventListener('click', () => { state.chosenIdx = i; renderPicks(); });
+    d.addEventListener('click', () => { play('tap'); state.chosenIdx = i; renderPicks(); });
     list.appendChild(d);
   });
   $('btn-select-next').classList.toggle('ready', state.chosenIdx >= 0);
@@ -1447,7 +1612,7 @@ function renderFilterGrid() {
     n.className = 'name';
     n.textContent = fl.label;
     d.appendChild(sw); d.appendChild(n);
-    d.addEventListener('click', () => { state.filter = fl.id; renderPolaroids(); });
+    d.addEventListener('click', () => { play('tap'); state.filter = fl.id; renderPolaroids(); });
     grid.appendChild(d);
   });
 }
@@ -1461,7 +1626,7 @@ function renderTabs() {
     const d = document.createElement('div');
     d.className = 'set-tab' + (state.setIdx === i ? ' sel' : '');
     d.textContent = s.label;
-    d.addEventListener('click', () => { state.setIdx = i; renderTabs(); renderPalette(); });
+    d.addEventListener('click', () => { play('tap'); state.setIdx = i; renderTabs(); renderPalette(); });
     tabs.appendChild(d);
   });
 }
@@ -1514,6 +1679,7 @@ function addSticker(item) {
     y: 28 + Math.random() * 44,
     rot: Math.random() * 16 - 8,
   });
+  play('place');
   renderStickers();
 }
 
@@ -1773,6 +1939,7 @@ async function startPrint() {
   $('print-title-ko').textContent = '인화 중입니다';
   $('print-title-en').textContent = 'DO NOT PULL THE FILM · 15 SECONDS';
   setQrState(CONFIG.showQr ? 'pending' : 'off');
+  play('eject');   // 3.16 s, trimmed to land on the eject animation below
 
   // The ceremony and the upload run together: the polaroid always ejects on
   // schedule even if the network is slow or down.
@@ -1813,7 +1980,7 @@ function renderFrames() {
     name.className = 'name';
     name.textContent = fr.label;
     card.appendChild(film); card.appendChild(name);
-    card.addEventListener('click', () => { state.frame = fr.id; renderFrames(); });
+    card.addEventListener('click', () => { play('tap'); state.frame = fr.id; renderFrames(); });
     list.appendChild(card);
   });
 }
@@ -1825,7 +1992,7 @@ function reset() {
   running = false; stopLoop();
   timers.forEach(clearTimeout); timers.length = 0;
   shots = [];
-  Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [], printing: false });
+  Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [], printing: false, lang: CONFIG.voice });
   $('qr-img').removeAttribute('src');
   setCount(null);
   renderFrames();
@@ -1881,20 +2048,39 @@ document.addEventListener('visibilitychange', () => {
 
 /* ---------- wire up ---------- */
 
-$('scr-attract').addEventListener('click', () => show('frame'));
-$('restart').addEventListener('click', reset);
-$('btn-frame-next').addEventListener('click', () => { shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
-$('btn-shoot').addEventListener('click', startShoot);
-$('btn-cam-retry').addEventListener('click', () => { stopCam(); startCam(); });
-$('btn-cancel-shoot').addEventListener('click', cancelShoot);
-$('btn-retake').addEventListener('click', () => { running = false; stopLoop(); shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
-$('btn-select-next').addEventListener('click', () => { if (state.chosenIdx >= 0) show('filter'); });
-$('btn-decorate').addEventListener('click', () => show('decorate'));
-$('btn-back-filter').addEventListener('click', () => show('filter'));
-$('btn-undo').addEventListener('click', () => { state.stickers.pop(); renderStickers(); });
-$('btn-clear').addEventListener('click', () => { state.stickers = []; renderStickers(); });
-$('btn-print').addEventListener('click', startPrint);
-$('btn-done').addEventListener('click', reset);
+// Starting a session is the one place audio can be unlocked, because it is the
+// first gesture a guest makes. Tapping a flag picks the welcome language; tapping
+// anywhere else starts in CONFIG.voice, so an impatient guest is never blocked by
+// a choice they did not want to make.
+function startSession(lang) {
+  state.lang = lang;
+  audioUnlock();
+  show('frame');
+  // A beat after the screen turns over, so the welcome does not talk over the
+  // transition it is announcing.
+  timers.push(setTimeout(() => play('voice-' + state.lang), 280));
+}
+
+document.querySelectorAll('.lang').forEach(b =>
+  b.addEventListener('click', e => {
+    e.stopPropagation();   // the attract screen's own handler would fire too
+    startSession(b.dataset.lang);
+  }));
+
+$('scr-attract').addEventListener('click', () => startSession(CONFIG.voice));
+$('restart').addEventListener('click', () => { play('back'); reset(); });
+$('btn-frame-next').addEventListener('click', () => { play('confirm'); shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
+$('btn-shoot').addEventListener('click', () => { play('confirm'); startShoot(); });
+$('btn-cam-retry').addEventListener('click', () => { play('tap'); stopCam(); startCam(); });
+$('btn-cancel-shoot').addEventListener('click', () => { play('back'); cancelShoot(); });
+$('btn-retake').addEventListener('click', () => { play('back'); running = false; stopLoop(); shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
+$('btn-select-next').addEventListener('click', () => { if (state.chosenIdx >= 0) { play('confirm'); show('filter'); } });
+$('btn-decorate').addEventListener('click', () => { play('confirm'); show('decorate'); });
+$('btn-back-filter').addEventListener('click', () => { play('back'); show('filter'); });
+$('btn-undo').addEventListener('click', () => { play('back'); state.stickers.pop(); renderStickers(); });
+$('btn-clear').addEventListener('click', () => { play('back'); state.stickers = []; renderStickers(); });
+$('btn-print').addEventListener('click', () => { play('confirm'); startPrint(); });
+$('btn-done').addEventListener('click', () => { play('confirm'); reset(); });
 
 renderFrames();
 renderSlots();
