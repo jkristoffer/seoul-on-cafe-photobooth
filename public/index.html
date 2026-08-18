@@ -484,7 +484,11 @@ const SFX = {
   'music-shoot':   'assets/sfx/music/shoot.mp3',
 };
 
-const audio = { ctx: null, master: null, musicBus: null, buffers: {}, music: null, musicName: null };
+const audio = {
+  ctx: null, master: null, musicBus: null, buffers: {},
+  music: null, musicName: null,
+  wantMusic: null, wantLoop: false,   // a bed asked for before its buffer decoded
+};
 
 function audioInit() {
   if (audio.ctx) return;
@@ -506,7 +510,12 @@ function audioInit() {
     fetch(url)
       .then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
       .then(b => audio.ctx.decodeAudioData(b))
-      .then(buf => { audio.buffers[name] = buf; })
+      .then(buf => {
+        audio.buffers[name] = buf;
+        // A bed can be asked for before it has finished decoding — a guest who
+        // taps the moment the page paints. Start it now instead of dropping it.
+        if (audio.wantMusic === name && !audio.music) playMusic(name, audio.wantLoop);
+      })
       .catch(e => console.warn('sound unavailable:', name, e.message));
   });
 }
@@ -535,13 +544,17 @@ function play(name, opts = {}) {
 
 function playMusic(name, loop) {
   if (!CONFIG.sound || !CONFIG.music || !audio.ctx) return;
-  if (audio.musicName === name) return;
+  if (audio.musicName === name) return;   // already running: let it play through
   stopMusic(0.15);
+  audio.wantMusic = name;
+  audio.wantLoop = loop;
+  if (!audio.buffers[name]) return;       // the decode callback will start it
   audio.music = play(name, { loop, music: true });
   audio.musicName = audio.music ? name : null;
 }
 
 function stopMusic(fade = 0.4) {
+  audio.wantMusic = null;
   if (!audio.music) { audio.musicName = null; return; }
   const { src, g } = audio.music;
   const t = audio.ctx.currentTime;
@@ -781,11 +794,15 @@ function show(screen) {
   if (screen === 'filter' || screen === 'decorate' || screen === 'print') renderPolaroids();
   if (screen === 'decorate') { renderTabs(); renderPalette(); renderStickers(); }
 
-  // The attract bed is the only looping music. It cannot start on first load —
-  // no gesture has happened yet — so it comes up when a session ends and the
-  // booth returns here with audio already unlocked.
-  if (screen === 'attract') playMusic('music-attract', true);
-  else if (audio.musicName === 'music-attract') stopMusic();
+  // The soft bed runs under every screen except the shoot, which belongs to the
+  // camera: the countdown beeps and the shutter need clear air, and the shoot has
+  // its own bed anyway. playMusic() no-ops when the same bed is already playing,
+  // so the loop plays *through* navigation rather than restarting per screen.
+  //
+  // It cannot start on first load — no gesture has happened yet — so it comes up
+  // on the first screen change after a guest touches the booth.
+  if (screen === 'shoot') { if (audio.musicName === 'music-attract') stopMusic(0.5); }
+  else playMusic('music-attract', true);
 
   pokeIdle();
 }
@@ -2081,6 +2098,11 @@ $('btn-undo').addEventListener('click', () => { play('back'); state.stickers.pop
 $('btn-clear').addEventListener('click', () => { play('back'); state.stickers = []; renderStickers(); });
 $('btn-print').addEventListener('click', () => { play('confirm'); startPrint(); });
 $('btn-done').addEventListener('click', () => { play('confirm'); reset(); });
+
+// Built at load, not at first touch: the context starts suspended (which the
+// autoplay policy allows) so decoding is finished long before a guest taps, and
+// audioUnlock() then only has to resume it.
+audioInit();
 
 renderFrames();
 renderSlots();

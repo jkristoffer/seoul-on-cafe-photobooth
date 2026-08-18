@@ -161,11 +161,21 @@ graph rather than `<audio>` elements, because the shutter has to land on the sam
 frame as the flash and an element drifts by tens of milliseconds on first play. A
 missing file is never fatal: `play()` no-ops on a buffer that failed to load.
 
-Two things are easy to get wrong here:
+The soft bed runs under **every screen except the shoot**, which belongs to the
+camera — the countdown beeps and the shutter need clear air, and the shoot has its
+own 16-second bed. It is one continuous loop, not a track restarted per screen:
+`playMusic()` no-ops when the requested bed is already playing, so the same source
+node plays from the moment a guest starts through to the reset back to attract.
 
-- **Nothing plays before a gesture.** The autoplay policy means the attract loop
-  cannot start on first load. It comes up when the first session ends and the
-  booth returns to attract with audio already unlocked.
+Three things are easy to get wrong here:
+
+- **Nothing plays before a gesture.** The autoplay policy is why the picker is the
+  start control. The context is still built at load, suspended, so decoding
+  finishes long before anyone taps and `audioUnlock()` only has to resume it.
+- **A bed can be asked for before it has decoded.** A guest who taps the instant
+  the page paints would otherwise get silence for the whole session, because
+  `playMusic()` ran once, found no buffer and gave up. The request is remembered
+  in `audio.wantMusic` and started from the decode callback instead.
 - **The countdown beep is gated on the countdown, not on the digit.** During the
   700 ms gap between shots the display already shows the next `3`, so beeping
   whenever the number changes puts a pip barely 100 ms behind the shutter, which
