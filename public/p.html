@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>사진 받기 · SE/O UL Photo Booth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --green:#123B26; --green-deep:#0E3020; --cream:#F7F1E3; --butter:#E8B84B; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100svh; background: var(--green-deep); color: var(--cream);
+    font-family: 'IBM Plex Sans KR', sans-serif; -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 32px 20px calc(32px + env(safe-area-inset-bottom));
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .logo { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 38px; height: 38px;
+          font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
+  .logo span { display: flex; align-items: center; justify-content: center; background: rgba(247,241,227,.12); }
+  .wordmark { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .2em; font-weight: 600; }
+  main { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 22px; }
+  #photo { width: 100%; display: none; box-shadow: 0 24px 48px rgba(0,0,0,.4); }
+  #photo.on { display: block; }
+  .btn {
+    display: block; width: 100%; text-align: center; text-decoration: none;
+    background: var(--butter); color: var(--green); padding: 20px;
+    font-size: 18px; font-weight: 700; letter-spacing: .02em; border: 0; cursor: pointer;
+  }
+  .hint { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .12em;
+          opacity: .55; line-height: 1.9; text-align: center; }
+  .state { font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .14em;
+           opacity: .75; text-align: center; line-height: 2; padding: 48px 0; }
+  .state strong { display: block; font-size: 20px; letter-spacing: .04em; margin-bottom: 10px;
+                  font-family: 'IBM Plex Sans KR', sans-serif; opacity: 1; }
+  #actions { display: none; width: 100%; flex-direction: column; gap: 14px; }
+  #actions.on { display: flex; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo"><span>SE</span><span>O</span><span>/</span><span>UL</span></div>
+  <div class="wordmark">PHOTO BOOTH</div>
+</header>
+
+<main>
+  <div id="state" class="state">불러오는 중<br>LOADING…</div>
+  <img id="photo" alt="Your polaroid from SE/O UL Photo Booth">
+  <div id="actions">
+    <a id="download" class="btn" download>저장하기 · SAVE PHOTO</a>
+    <div class="hint">
+      길게 눌러 저장할 수도 있어요<br>
+      OR PRESS AND HOLD THE PHOTO TO SAVE<br>
+      <span id="expiry"></span>
+    </div>
+  </div>
+</main>
+
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+const id = (location.pathname.match(/\/p\/([^/?#]+)/) || [])[1]
+        || new URLSearchParams(location.search).get('id')
+        || '';
+
+function fail(ko, en) {
+  $('state').innerHTML = '<strong>' + ko + '</strong>' + en;
+  $('state').style.display = '';
+}
+
+function hoursLeft(expiresAt) {
+  const h = Math.max(0, Math.ceil((expiresAt - Date.now()) / 3600000));
+  return h + (h === 1 ? ' HOUR LEFT' : ' HOURS LEFT');
+}
+
+async function load() {
+  if (!id) return fail('잘못된 주소입니다', 'INVALID LINK');
+  let res;
+  try {
+    res = await fetch('/api/photo?id=' + encodeURIComponent(id));
+  } catch {
+    return fail('연결에 실패했어요', 'NETWORK ERROR — CHECK YOUR CONNECTION');
+  }
+
+  if (res.status === 404) return fail('사진을 찾을 수 없어요', 'PHOTO NOT FOUND');
+  if (res.status === 410) return fail('링크가 만료되었어요', 'THIS LINK HAS EXPIRED — PHOTOS LAST 24 HOURS');
+  if (!res.ok) return fail('사진을 불러올 수 없어요', 'COULD NOT LOAD PHOTO');
+
+  const data = await res.json();
+  const img = $('photo');
+  img.onload = () => {
+    $('state').style.display = 'none';
+    img.classList.add('on');
+    $('actions').classList.add('on');
+  };
+  img.onerror = () => fail('사진을 불러올 수 없어요', 'COULD NOT LOAD PHOTO');
+  img.src = data.url;
+
+  const dl = $('download');
+  dl.href = data.url;
+  dl.setAttribute('download', 'seoul-photobooth-' + data.id + '.jpg');
+  $('expiry').textContent = hoursLeft(data.expiresAt);
+}
+
+load();
+</script>
+</body>
+</html>

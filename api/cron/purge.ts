@@ -1,0 +1,36 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { list, del } from '@vercel/blob';
+import { TTL_MS } from '../photo.js';
+
+export const config = { maxDuration: 60 };
+
+/**
+ * The kiosk promises "EXPIRES IN 24H" on screen. Vercel Blob has no native TTL,
+ * so this hourly cron is what actually makes that promise true.
+ */
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const secret = process.env.CRON_SECRET;
+  if (secret && req.headers.authorization !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
+
+  const cutoff = Date.now() - TTL_MS;
+  const expired: string[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const page = await list({ prefix: 'photos/', cursor, limit: 1000 });
+    for (const blob of page.blobs) {
+      if (new Date(blob.uploadedAt).getTime() < cutoff) expired.push(blob.url);
+    }
+    cursor = page.hasMore ? page.cursor : undefined;
+  } while (cursor);
+
+  // del() accepts batches; chunk so a large backlog stays under request limits.
+  for (let i = 0; i < expired.length; i += 100) {
+    await del(expired.slice(i, i + 100));
+  }
+
+  console.log(`purge: deleted ${expired.length} expired photo(s)`);
+  return res.status(200).json({ deleted: expired.length });
+}
