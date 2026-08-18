@@ -1,0 +1,11 @@
+{
+  "$comment": "Maps raw generator output to sticker ids. Generator filenames are opaque and unstable, so the mapping is recorded here rather than inferred.",
+  "assets": [
+    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (1).png", "set": "badge", "id": "cafe-on-seoul" },
+    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (2).png", "set": "badge", "id": "meet-me-at" },
+    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (3).png", "set": "badge", "id": "annyeong" },
+    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (4).png", "set": "badge", "id": "freshly-baked" },
+    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (5).png", "set": "badge", "id": "seoulful-sip" },
+    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (6).png", "set": "badge", "id": "kuching" }
+  ]
+}

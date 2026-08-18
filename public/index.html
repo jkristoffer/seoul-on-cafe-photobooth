@@ -455,6 +455,18 @@ const emoji = (fg, size) => ({
   css: { color: fg, fontSize: (size || 40) + 'px', lineHeight: 1, fontFamily: "'Noto Emoji', sans-serif", textShadow: '0 2px 6px rgba(0,0,0,.18)' },
   draw: { kind: 'glyph', fg, fontSize: size || 40, font: '400 ' + (size || 40) + 'px "Noto Emoji", sans-serif', shadow: true },
 });
+/* Image stickers are laid out as a square box with the art contained inside it,
+   rather than sized to the art's own aspect. That keeps one number (`size`) in
+   charge of both the DOM overlay and the bake, so the two cannot drift. */
+const image = (src, size) => ({
+  css: {
+    width: size + 'px', height: size + 'px',
+    backgroundImage: 'url("' + src + '")',
+    backgroundSize: 'contain', backgroundPosition: 'center', backgroundRepeat: 'no-repeat',
+    filter: 'drop-shadow(0 2px 6px rgba(0,0,0,.22))',
+  },
+  draw: { kind: 'image', src, size },
+});
 const tape = (bg, fg) => ({
   css: { background: bg, color: fg, padding: '8px 20px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '.2em', fontWeight: 600, opacity: .92 },
   draw: { kind: 'box', bg, fg, padX: 20, padY: 8, fontSize: 13, font: '600 13px "IBM Plex Mono", monospace', tracking: .2, alpha: .92 },
@@ -500,6 +512,17 @@ const SETS = [
     { label: '////////', style: tape('#D94F4F', '#FFF8EE') },
     { label: 'REC ●', style: tape('rgba(20,20,20,.75)', '#FF5A5A') },
     { label: 'SEOUL 서울', style: tape(GREEN, CREAM) },
+  ] },
+  { id: 'badge', label: '뱃지 / BADGE', items: [
+    /* Merch-style die-cut badges. They carry their own lettering and dense detail,
+       so they are placed large — roughly 45% of the 332px photo — and one or two
+       is a full decoration. Sized down to accent scale they turn to mush. */
+    { label: 'cafe-on-seoul', style: image('/assets/stickers/badge-cafe-on-seoul.png', 150) },
+    { label: 'kuching',       style: image('/assets/stickers/badge-kuching.png', 150) },
+    { label: 'annyeong',      style: image('/assets/stickers/badge-annyeong.png', 150) },
+    { label: 'seoulful-sip',  style: image('/assets/stickers/badge-seoulful-sip.png', 140) },
+    { label: 'freshly-baked', style: image('/assets/stickers/badge-freshly-baked.png', 140) },
+    { label: 'meet-me-at',    style: image('/assets/stickers/badge-meet-me-at.png', 140) },
   ] },
   { id: 'emoji', label: '이모지 / ICONS', items: [
     { label: '\u{2615}', style: emoji(TEAK, 44) },
@@ -1153,13 +1176,21 @@ function renderTabs() {
   });
 }
 
+const PALETTE_THUMB = 76;
+
 function renderPalette() {
   const pal = $('palette');
+  const set = SETS[state.setIdx] || SETS[0];
+  preloadSetImages(set);
   pal.innerHTML = '';
-  (SETS[state.setIdx] || SETS[0]).items.forEach(it => {
+  set.items.forEach(it => {
     const d = document.createElement('div');
-    d.textContent = it.label;
+    const isImage = it.style.draw && it.style.draw.kind === 'image';
+    if (!isImage) d.textContent = it.label;
     applyStyle(d, it.style.css);
+    // Badges are placed far larger than they can be shown in the tray, so the
+    // swatch is capped. Only the preview shrinks — the placed sticker keeps its size.
+    if (isImage) { d.style.width = PALETTE_THUMB + 'px'; d.style.height = PALETTE_THUMB + 'px'; }
     d.addEventListener('click', () => addSticker(it));
     pal.appendChild(d);
   });
@@ -1181,7 +1212,8 @@ function addSticker(item) {
 function stickerEl(s, draggable) {
   const d = document.createElement('div');
   d.className = 'sticker';
-  d.textContent = s.label;
+  // Image stickers carry no visible label; their id would otherwise print over the art.
+  if (!(s.draw && s.draw.kind === 'image')) d.textContent = s.label;
   applyStyle(d, s.base);
   d.style.position = 'absolute';
   d.style.left = s.x + '%';
@@ -1236,11 +1268,64 @@ function roundRectPath(g, x, y, w, h, r) {
   g.closePath();
 }
 
+/* ---------- sticker images ---------- */
+
+/* drawSticker runs synchronously inside the bake loop, so every image it might
+   need must already be decoded. This cache is warmed when a palette renders and
+   awaited again before compositing, so neither path can race the encoder. */
+const IMG_CACHE = new Map();
+
+function stickerImage(src) {
+  let entry = IMG_CACHE.get(src);
+  if (!entry) {
+    entry = { img: null };
+    entry.ready = new Promise(resolve => {
+      const im = new Image();
+      im.decoding = 'async';
+      im.onload = () => { entry.img = im; resolve(im); };
+      // Fail soft: a missing sticker asset must never block a guest's print.
+      im.onerror = () => { console.warn('[sticker] failed to load ' + src); resolve(null); };
+      im.src = src;
+    });
+    IMG_CACHE.set(src, entry);
+  }
+  return entry;
+}
+
+function preloadSetImages(set) {
+  (set && set.items || []).forEach(it => {
+    const d = it.style && it.style.draw;
+    if (d && d.kind === 'image') stickerImage(d.src);
+  });
+}
+
+function stickerImagesReady() {
+  const srcs = state.stickers.filter(s => s.draw && s.draw.kind === 'image').map(s => s.draw.src);
+  return Promise.all([...new Set(srcs)].map(src => stickerImage(src).ready));
+}
+
+/* Contain-fit, mirroring `background-size: contain` in the DOM overlay. */
+function containBox(im, size) {
+  const ar = im.naturalWidth / im.naturalHeight;
+  return ar >= 1 ? { w: size, h: size / ar } : { w: size * ar, h: size };
+}
+
 function drawSticker(g, s) {
   const d = s.draw;
   if (!d) return;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
+
+  if (d.kind === 'image') {
+    const im = (IMG_CACHE.get(d.src) || {}).img;
+    // Undecoded or failed: draw nothing rather than a placeholder box.
+    if (!im) return;
+    const { w, h } = containBox(im, d.size);
+    g.shadowColor = 'rgba(0,0,0,.22)'; g.shadowOffsetY = 2; g.shadowBlur = 6;
+    g.drawImage(im, -w / 2, -h / 2, w, h);
+    g.shadowColor = 'transparent'; g.shadowOffsetY = 0; g.shadowBlur = 0;
+    return;
+  }
 
   if (d.kind === 'glyph') {
     g.font = d.font;
@@ -1274,6 +1359,8 @@ function drawSticker(g, s) {
 async function composite() {
   // Canvas text falls back to a system font unless the webfonts have landed.
   try { await document.fonts.ready; } catch (e) { /* non-fatal */ }
+  // Image stickers are drawn synchronously below, so decode them all up front.
+  try { await stickerImagesReady(); } catch (e) { /* non-fatal */ }
 
   const S = OUT.scale, W = OUT.w, PAD = OUT.pad;
   const PHOTO = W - PAD * 2;
