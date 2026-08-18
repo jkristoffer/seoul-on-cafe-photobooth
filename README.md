@@ -126,12 +126,26 @@ Typecheck the functions with `npm run build` (`tsc --noEmit`).
 npm run deploy
 ```
 
-Live at **https://seoul-on-cafe.vercel.app**. That hostname comes from the Vercel
-project name, so renaming the project moves the booth; the QR encodes whatever
-host served the request, so it follows automatically.
+Live at **https://cafe-on-seoul.vercel.app**. The QR encodes whatever host served
+the request, so the booth follows its domain with no code change.
+
+Renaming the Vercel project does *not* move the hostname on its own — the new
+`<name>.vercel.app` has to be claimed as a project domain, and the old one stays
+attached until removed:
+
+```bash
+npx vercel project rename <old> <new>
+npx vercel domains add <new>.vercel.app <new>
+npx vercel deploy --prod
+npx vercel alias rm <old>.vercel.app --yes
+```
+
+Use `domains add`, not `alias set`: a bare deployment alias is not treated as a
+production domain and stays behind Deployment Protection, which would send every
+guest scanning a QR to a Vercel login.
 
 Requires a Blob store linked to the project (`npx vercel blob create-store
-seoul-on-cafe --access public`). Deployment Protection covers deployment-specific
+cafe-on-seoul --access public`). Deployment Protection covers deployment-specific
 URLs but not the production alias, so guests scanning a QR from production are
 fine — a QR generated from a *preview* deployment will demand a Vercel login.
 
