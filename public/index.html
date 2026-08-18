@@ -767,6 +767,80 @@ function renderPicks() {
   $('btn-select-next').classList.toggle('ready', state.chosenIdx >= 0);
 }
 
+/* ---------- face landmarks -----------------------------------------------
+
+   MediaPipe is vendored under /vendor/mediapipe (see its NOTICE.md) so the
+   booth never depends on a third-party host at runtime — the same property the
+   PWA precache needs.
+
+   Loading is warmed on the attract screen and NEVER awaited on the critical
+   path. Every caller treats "no landmarker" and "no face found" as the same
+   ordinary outcome, so a guest is never blocked by a model that failed to load.
+-------------------------------------------------------------------------- */
+
+const FACE = {
+  bundle: '/vendor/mediapipe/vision_bundle.mjs',
+  wasmDir: '/vendor/mediapipe/wasm',
+  model: '/models/face_landmarker.task',
+  // ?facedebug paints the raw landmarks over the step-04 preview.
+  debug: new URLSearchParams(location.search).has('facedebug'),
+};
+
+let facePromise = null;
+let faceLandmarker = null;
+
+function warmFace() {
+  if (facePromise) return facePromise;
+  const t0 = performance.now();
+  facePromise = (async () => {
+    const vision = await import(FACE.bundle);
+    const fileset = await vision.FilesetResolver.forVisionTasks(FACE.wasmDir);
+    // CPU delegate: this runs once on a single still, so the GPU path buys
+    // nothing and costs portability across whatever GPU the booth ships with.
+    faceLandmarker = await vision.FaceLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: FACE.model, delegate: 'CPU' },
+      runningMode: 'IMAGE',
+      numFaces: 1,
+    });
+    console.log('[face] ready in ' + Math.round(performance.now() - t0) + 'ms');
+    return faceLandmarker;
+  })().catch(err => { console.warn('[face] unavailable', err); return null; });
+  return facePromise;
+}
+
+// 478 normalised {x,y,z} points for the largest face, or null. Never throws:
+// a detection failure has to degrade to "no face", not break the filter step.
+function faceLandmarksFor(src) {
+  if (!faceLandmarker || !src) return null;
+  try {
+    const t0 = performance.now();
+    const res = faceLandmarker.detect(src);
+    const pts = res && res.faceLandmarks && res.faceLandmarks.length ? res.faceLandmarks[0] : null;
+    if (FACE.debug) console.log('[face] detect ' + Math.round(performance.now() - t0) + 'ms, ' + (pts ? pts.length + ' pts' : 'no face'));
+    return pts;
+  } catch (err) {
+    console.warn('[face] detect failed', err);
+    return null;
+  }
+}
+
+// Spike-only readout, gated behind ?facedebug.
+function drawFaceDebug(cv, src) {
+  const g = cv.getContext('2d');
+  const pts = faceLandmarksFor(src);
+  g.save();
+  if (pts) {
+    g.fillStyle = 'rgba(232,184,75,.95)';
+    pts.forEach(pt => g.fillRect(pt.x * cv.width - 1, pt.y * cv.height - 1, 2, 2));
+  }
+  g.fillStyle = pts ? 'rgba(18,59,38,.88)' : 'rgba(170,30,30,.88)';
+  g.fillRect(0, 0, 132, 22);
+  g.fillStyle = '#fff';
+  g.font = '13px monospace';
+  g.fillText(pts ? pts.length + ' LANDMARKS' : 'NO FACE', 7, 16);
+  g.restore();
+}
+
 /* ---------- filter kernels ------------------------------------------------
 
    A filter entry in FILTERS carries EITHER a `css` string (a CSS filter chain,
@@ -913,6 +987,7 @@ function renderPolaroids() {
       cv.getContext('2d').drawImage(src, 0, 0);
     }
     cv.style.filter = filterCss();
+    if (FACE.debug && id === 'pol-filter' && src) drawFaceDebug(cv, src);
     pol.querySelector('.date').textContent = todayStr();
   });
   renderFilterGrid();
@@ -1303,6 +1378,7 @@ renderSlots();
 updateShootTitles();
 fitStage();
 keepAwake();
+warmFace();
 show('attract');
 </script>
 </body>
