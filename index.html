@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>즉석 사진관 · SE/O UL Photo Booth</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #123B26;
+    --green-deep: #0E3020;
+    --green-black: #081A11;
+    --cream: #F7F1E3;
+    --teak: #8A5A34;
+    --butter: #E8B84B;
+    --paper: #FFFDF8;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: #0B1F15;
+    font-family: 'Archivo', 'IBM Plex Sans KR', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .kr { font-family: 'IBM Plex Sans KR', sans-serif; }
+
+  @keyframes pulse { 0%,100% { opacity:.55; transform:translateY(0) } 50% { opacity:1; transform:translateY(-3px) } }
+  @keyframes flashout { from { opacity:1 } to { opacity:0 } }
+  @keyframes eject { from { transform:translateY(-330px) } to { transform:translateY(0) } }
+  @keyframes spinslow { to { transform:rotate(360deg) } }
+
+  /* ------- stage: fixed 1280x800 kiosk, scaled to fit viewport ------- */
+  #stage {
+    width: 1280px; height: 800px;
+    overflow: hidden; position: relative; flex: none;
+    background: var(--cream); color: var(--green);
+    display: flex; flex-direction: column;
+    transform-origin: center center;
+  }
+  .screen { display: none; }
+  .screen.active { display: flex; }
+
+  /* ------- top chrome ------- */
+  #chrome {
+    height: 72px; flex: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; background: var(--green); color: var(--cream);
+  }
+  #chrome.hidden { display: none; }
+  .logo-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
+    width: 38px; height: 38px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  }
+  .logo-grid span { display: flex; align-items: center; justify-content: center; background: rgba(247,241,227,.12); }
+  #steps { display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: .08em; }
+  #steps .step { padding: 10px 12px; border: 1px solid rgba(247,241,227,.2); color: rgba(247,241,227,.6); }
+  #steps .step.cur { border-color: transparent; background: var(--butter); color: var(--green); font-weight: 600; }
+  #restart {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .12em;
+    padding: 14px 16px; border: 1px solid rgba(247,241,227,.35); cursor: pointer;
+  }
+  #restart:hover { background: rgba(247,241,227,.12); }
+
+  /* ------- attract ------- */
+  #scr-attract {
+    flex: 1; background: var(--green); color: var(--cream);
+    align-items: center; justify-content: space-between;
+    padding: 0 72px; cursor: pointer; position: relative; overflow: hidden;
+  }
+  .ring { position: absolute; border: 1px solid rgba(247,241,227,.14); border-radius: 50%; }
+  .attract-left { display: flex; flex-direction: column; gap: 26px; position: relative; }
+  .logo-grid-lg {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
+    width: 104px; height: 104px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600;
+  }
+  .logo-grid-lg span { display: flex; align-items: center; justify-content: center; background: rgba(247,241,227,.1); }
+  .attract-title { font-size: 72px; font-weight: 700; letter-spacing: -.03em; line-height: .98; font-family: 'IBM Plex Sans KR', sans-serif; }
+  .attract-sub { font-size: 30px; font-weight: 500; letter-spacing: .16em; margin-top: 12px; opacity: .72; }
+  .attract-info { font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .14em; opacity: .65; line-height: 2; }
+  .attract-cta {
+    animation: pulse 2.2s ease-in-out infinite;
+    display: inline-flex; align-items: center; gap: 14px;
+    background: var(--butter); color: var(--green);
+    padding: 24px 40px; align-self: flex-start;
+    font-size: 22px; font-weight: 700; letter-spacing: .04em;
+  }
+  .attract-polaroid { position: relative; width: 290px; height: 348px; }
+  .attract-polaroid > div {
+    position: absolute; inset: 0; background: var(--paper);
+    padding: 15px 15px 68px; box-shadow: 0 30px 60px rgba(0,0,0,.35); transform: rotate(-5deg);
+  }
+  .attract-polaroid .film { width: 100%; height: 100%; background: repeating-linear-gradient(135deg,#DED5C2 0 12px,#E9E1D0 12px 24px); }
+  .attract-polaroid .cap {
+    position: absolute; left: 16px; bottom: 22px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .18em; color: var(--green); opacity: .5;
+  }
+
+  /* ------- frame (film) choice ------- */
+  #scr-frame { flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 32px; }
+  .screen-title { font-size: 36px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: -.02em; }
+  .screen-sub { font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .16em; opacity: .6; margin-top: 8px; }
+  #frame-list { display: flex; gap: 20px; }
+  .frame-card { cursor: pointer; padding: 11px; border: 1px solid rgba(18,59,38,.18); }
+  .frame-card.sel { border-color: var(--green); background: rgba(18,59,38,.05); }
+  .frame-card .film { width: 176px; padding: 10px 10px 0; box-shadow: 0 12px 26px rgba(11,31,21,.18); }
+  .frame-card .film .ph { width: 100%; aspect-ratio: 1; background: repeating-linear-gradient(135deg,#D8CFBC 0 10px,#E6DECD 10px 20px); }
+  .frame-card .film .cap { height: 42px; display: flex; align-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .14em; opacity: .7; }
+  .frame-card .name { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .12em; text-align: center; padding: 12px 0 2px; }
+  .btn-primary {
+    background: var(--green); color: var(--cream);
+    padding: 24px 56px; font-size: 20px; font-weight: 600; cursor: pointer; letter-spacing: .04em;
+  }
+  .btn-primary:hover { background: #0B2A1A; }
+
+  /* ------- shoot ------- */
+  #scr-shoot {
+    flex: 1; background: var(--green-deep); color: var(--cream);
+    align-items: center; justify-content: center; gap: 38px;
+    padding: 0 40px; position: relative; overflow: hidden;
+  }
+  .shoot-slots { width: 200px; display: flex; flex-direction: column; gap: 14px; }
+  .shoot-slots .lbl { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .16em; opacity: .6; }
+  #slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .slot { width: 100%; aspect-ratio: 1; background: rgba(247,241,227,.06); border: 1px solid rgba(247,241,227,.14); overflow: hidden; }
+  .slot.filled { border-color: rgba(247,241,227,.35); }
+  .slot canvas { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .slot .num { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-family: 'IBM Plex Mono', monospace; font-size: 15px; opacity: .45; }
+  #viewfinder { position: relative; width: 520px; height: 520px; background: var(--green-black); overflow: hidden; border: 1px solid rgba(247,241,227,.18); }
+  #cam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  #cam-error {
+    position: absolute; inset: 0; display: none;
+    background: repeating-linear-gradient(135deg,#123B26 0 14px,#16412a 14px 28px);
+    flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: .14em; text-align: center; opacity: .85;
+  }
+  #cam-error.on { display: flex; }
+  .vf-inset { position: absolute; inset: 18px; border: 1px solid rgba(247,241,227,.35); pointer-events: none; }
+  #countdown {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    font-size: 172px; font-weight: 800; color: var(--cream); text-shadow: 0 8px 40px rgba(0,0,0,.5);
+  }
+  #countdown.on { display: flex; }
+  #flash { position: absolute; inset: 0; background: var(--paper); opacity: 0; pointer-events: none; }
+  #flash.on { animation: flashout .35s ease-out forwards; }
+  .shoot-right { width: 236px; display: flex; flex-direction: column; gap: 18px; }
+  #shoot-title-ko { font-size: 28px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; line-height: 1.2; }
+  #shoot-title-en { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .12em; opacity: .65; line-height: 1.9; }
+  #btn-shoot { background: var(--butter); color: var(--green); padding: 24px 20px; text-align: center; font-size: 20px; font-weight: 700; cursor: pointer; }
+  #btn-shoot:hover { background: #f0c65f; }
+  #btn-cancel-shoot {
+    border: 1px solid rgba(247,241,227,.35); padding: 18px 20px; text-align: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .16em; cursor: pointer;
+  }
+  #btn-cancel-shoot:hover { background: rgba(247,241,227,.12); }
+
+  /* ------- select ------- */
+  #scr-select { flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 30px; }
+  #pick-list { display: flex; gap: 18px; }
+  .pick { cursor: pointer; position: relative; padding: 8px; background: var(--paper); box-shadow: 0 14px 30px rgba(11,31,21,.16); }
+  .pick canvas { width: 212px; height: 212px; object-fit: cover; display: block; }
+  .pick .badge { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .16em; padding: 10px 2px 2px; color: var(--green); }
+  .pick.sel { background: var(--green); }
+  .pick.sel .badge { color: var(--cream); }
+  .btn-ghost { border: 1px solid rgba(18,59,38,.3); padding: 22px 40px; font-size: 18px; font-weight: 600; cursor: pointer; }
+  .btn-ghost:hover { background: rgba(18,59,38,.06); }
+  #btn-select-next { background: rgba(18,59,38,.25); color: var(--cream); padding: 22px 44px; font-size: 18px; font-weight: 600; cursor: not-allowed; letter-spacing: .04em; }
+  #btn-select-next.ready { background: var(--green); cursor: pointer; }
+
+  /* ------- polaroid (shared: filter / decorate / print) ------- */
+  .polaroid {
+    width: 368px; flex: none; padding: 18px 18px 0;
+    box-shadow: 0 22px 44px rgba(11,31,21,.28);
+    display: flex; flex-direction: column;
+  }
+  .polaroid .photo { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; }
+  .polaroid .photo canvas { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; background: #DED5C2; }
+  .polaroid .caption { height: 80px; display: flex; align-items: center; justify-content: space-between; padding-top: 4px; }
+  .polaroid .caption span { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .16em; }
+  .polaroid .caption .date { opacity: .5; }
+  .sticker { position: absolute; transform: translate(-50%,-50%); user-select: none; touch-action: none; white-space: nowrap; }
+
+  /* ------- filter ------- */
+  #scr-filter { flex: 1; align-items: center; justify-content: center; gap: 52px; padding: 0 48px; }
+  .filter-right { width: 392px; display: flex; flex-direction: column; gap: 22px; }
+  .filter-right h2 { margin: 0; font-size: 34px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: -.02em; }
+  #filter-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+  .filter-card { cursor: pointer; border: 1px solid rgba(18,59,38,.16); padding: 7px; }
+  .filter-card.sel { border-color: var(--green); background: rgba(18,59,38,.06); }
+  .filter-card .sw { width: 100%; aspect-ratio: 1; }
+  .filter-card .name { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .04em; text-align: center; padding: 8px 1px; }
+  #btn-decorate { background: var(--green); color: var(--cream); padding: 24px 0; text-align: center; font-size: 20px; font-weight: 600; cursor: pointer; letter-spacing: .04em; }
+  #btn-decorate:hover { background: #0B2A1A; }
+
+  /* ------- decorate ------- */
+  #scr-decorate { flex: 1; align-items: stretch; }
+  .deco-panel {
+    width: 364px; flex: none; background: #EFE7D4;
+    display: flex; flex-direction: column; border-right: 1px solid rgba(18,59,38,.12);
+  }
+  #set-tabs { display: flex; flex-wrap: wrap; gap: 1px; padding: 16px 16px 0; }
+  .set-tab {
+    cursor: pointer; padding: 14px 13px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .08em;
+    background: rgba(18,59,38,.06); color: var(--green);
+  }
+  .set-tab.sel { background: var(--green); color: var(--cream); }
+  #palette { flex: 1; overflow: auto; padding: 18px; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; }
+  #palette > div { cursor: pointer; }
+  .deco-hint {
+    padding: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .1em;
+    opacity: .55; line-height: 1.9; border-top: 1px solid rgba(18,59,38,.12);
+  }
+  .deco-main { flex: 1; display: flex; align-items: center; justify-content: center; gap: 34px; padding: 0 30px; }
+  .deco-right { width: 224px; display: flex; flex-direction: column; gap: 12px; }
+  .deco-right h2 { margin: 0 0 6px; font-size: 32px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: -.02em; }
+  .btn-small { border: 1px solid rgba(18,59,38,.3); padding: 16px 0; text-align: center; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .btn-small:hover { background: rgba(18,59,38,.06); }
+  #btn-print { background: var(--butter); color: var(--green); padding: 24px 0; text-align: center; font-size: 20px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+  #btn-print:hover { background: #f0c65f; }
+  #sticker-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .1em; opacity: .55; line-height: 1.9; margin-top: 4px; }
+
+  /* ------- print ------- */
+  #scr-print { flex: 1; background: var(--green-deep); color: var(--cream); align-items: center; justify-content: center; gap: 60px; padding: 0 64px; }
+  .print-left { width: 372px; display: flex; flex-direction: column; gap: 20px; }
+  #print-title-ko { font-size: 40px; font-weight: 700; font-family: 'IBM Plex Sans KR', sans-serif; letter-spacing: -.02em; line-height: 1.15; }
+  #print-title-en { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .14em; opacity: .65; line-height: 2; }
+  #print-done { display: none; flex-direction: column; gap: 22px; }
+  #print-done.on { display: flex; }
+  #qr-card { display: flex; align-items: center; gap: 18px; background: rgba(247,241,227,.07); padding: 18px; }
+  #qr-grid { display: grid; grid-template-columns: repeat(13,1fr); width: 104px; height: 104px; background: var(--cream); padding: 6px; box-sizing: content-box; }
+  #qr-card .txt { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .1em; line-height: 2; opacity: .8; }
+  #btn-done { background: var(--butter); color: var(--green); padding: 24px 0; text-align: center; font-size: 20px; font-weight: 700; cursor: pointer; }
+  #btn-done:hover { background: #f0c65f; }
+  #print-spinner { display: none; align-items: center; gap: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .16em; opacity: .75; }
+  #print-spinner.on { display: flex; }
+  #print-spinner .spin { width: 16px; height: 16px; border: 2px solid rgba(247,241,227,.3); border-top-color: var(--butter); border-radius: 50%; animation: spinslow .9s linear infinite; }
+  .printer { position: relative; width: 360px; display: flex; flex-direction: column; align-items: center; }
+  .printer .lip { width: 100%; height: 22px; background: var(--green-black); border: 1px solid rgba(247,241,227,.2); position: relative; z-index: 3; }
+  .printer .chute { overflow: hidden; }
+  #eject { opacity: 0; transform: translateY(-330px); }
+  #eject.on { animation: eject 2.6s cubic-bezier(.2,.8,.2,1) both; opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="stage">
+
+  <!-- top chrome -->
+  <div id="chrome" class="hidden">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="logo-grid"><span>SE</span><span>O</span><span>/</span><span>UL</span></div>
+      <div style="font-size:13px;letter-spacing:.2em;font-weight:600">PHOTO BOOTH</div>
+    </div>
+    <div id="steps"></div>
+    <div id="restart">처음으로 / RESTART</div>
+  </div>
+
+  <!-- attract -->
+  <div id="scr-attract" class="screen">
+    <div class="ring" style="right:-140px;top:-140px;width:520px;height:520px"></div>
+    <div class="ring" style="right:-60px;bottom:-220px;width:420px;height:420px;border-color:rgba(247,241,227,.1)"></div>
+    <div class="attract-left">
+      <div class="logo-grid-lg"><span>SE</span><span>O</span><span>/</span><span>UL</span></div>
+      <div>
+        <div class="attract-title">즉석 사진관</div>
+        <div class="attract-sub">INSTANT FILM BOOTH</div>
+      </div>
+      <div class="attract-info">4컷 촬영 · 필터 · 스티커 · 폴라로이드 인화<br>4 SHOTS · FILTER · STICKERS · ONE POLAROID</div>
+      <div class="attract-cta">화면을 눌러 시작 &nbsp;·&nbsp; TAP TO START</div>
+    </div>
+    <div class="attract-polaroid">
+      <div>
+        <div class="film"></div>
+        <div class="cap">CAFE ON SEOUL</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- frame choice -->
+  <div id="scr-frame" class="screen">
+    <div style="text-align:center">
+      <div class="screen-title">필름을 골라주세요</div>
+      <div class="screen-sub">CHOOSE YOUR FILM · 1 POLAROID PER SESSION</div>
+    </div>
+    <div id="frame-list"></div>
+    <div id="btn-frame-next" class="btn-primary">다음 &nbsp;·&nbsp; NEXT</div>
+  </div>
+
+  <!-- shoot -->
+  <div id="scr-shoot" class="screen">
+    <div class="shoot-slots">
+      <div class="lbl">SHOTS</div>
+      <div id="slot-grid"></div>
+    </div>
+    <div id="viewfinder">
+      <video id="cam" autoplay playsinline muted></video>
+      <div id="cam-error">CAMERA UNAVAILABLE<br>SIMULATED SHOTS WILL BE USED</div>
+      <div class="vf-inset"></div>
+      <div id="countdown"></div>
+      <div id="flash"></div>
+    </div>
+    <div class="shoot-right">
+      <div id="shoot-title-ko"></div>
+      <div id="shoot-title-en"></div>
+      <div id="btn-shoot">촬영 시작 · START</div>
+      <div id="btn-cancel-shoot" style="display:none">중단 · CANCEL</div>
+    </div>
+  </div>
+
+  <!-- select -->
+  <div id="scr-select" class="screen">
+    <div style="text-align:center">
+      <div class="screen-title">인화할 사진 한 장</div>
+      <div class="screen-sub">PICK YOUR FAVOURITE</div>
+    </div>
+    <div id="pick-list"></div>
+    <div style="display:flex;gap:16px">
+      <div id="btn-retake" class="btn-ghost">다시 촬영 · RETAKE</div>
+      <div id="btn-select-next">다음 · NEXT</div>
+    </div>
+  </div>
+
+  <!-- filter -->
+  <div id="scr-filter" class="screen">
+    <div class="polaroid" id="pol-filter">
+      <div class="photo"><canvas></canvas></div>
+      <div class="caption"><span>CAFE ON SEOUL</span><span class="date"></span></div>
+    </div>
+    <div class="filter-right">
+      <div>
+        <h2>필터</h2>
+        <div class="screen-sub" style="font-size:12px">FILTER</div>
+      </div>
+      <div id="filter-grid"></div>
+      <div id="btn-decorate">스티커 꾸미기 · DECORATE</div>
+    </div>
+  </div>
+
+  <!-- decorate -->
+  <div id="scr-decorate" class="screen">
+    <div class="deco-panel">
+      <div id="set-tabs"></div>
+      <div id="palette"></div>
+      <div class="deco-hint">스티커를 눌러 추가 · 드래그해서 이동<br>TAP TO ADD · DRAG TO MOVE</div>
+    </div>
+    <div class="deco-main">
+      <div class="polaroid" id="pol-decorate">
+        <div class="photo" id="deco-photo"><canvas></canvas><div id="deco-stickers" style="position:absolute;inset:0"></div></div>
+        <div class="caption"><span>CAFE ON SEOUL</span><span class="date"></span></div>
+      </div>
+      <div class="deco-right">
+        <h2>꾸미기</h2>
+        <div id="btn-back-filter" class="btn-small">필터로 · BACK</div>
+        <div id="btn-undo" class="btn-small">되돌리기 · UNDO</div>
+        <div id="btn-clear" class="btn-small">전체 삭제 · CLEAR</div>
+        <div id="btn-print">인화하기 · PRINT</div>
+        <div id="sticker-count">0 STICKERS PLACED</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- print -->
+  <div id="scr-print" class="screen">
+    <div class="print-left">
+      <div id="print-title-ko"></div>
+      <div id="print-title-en"></div>
+      <div id="print-done">
+        <div id="qr-card">
+          <div id="qr-grid"></div>
+          <div class="txt">디지털 파일 받기<br>SCAN TO DOWNLOAD<br>EXPIRES IN 24H</div>
+        </div>
+        <div id="btn-done">완료 · DONE</div>
+      </div>
+      <div id="print-spinner"><div class="spin"></div>PRINTING…</div>
+    </div>
+    <div class="printer">
+      <div class="lip"></div>
+      <div class="chute">
+        <div id="eject">
+          <div class="polaroid" id="pol-print">
+            <div class="photo"><canvas></canvas><div id="print-stickers" style="position:absolute;inset:0"></div></div>
+            <div class="caption"><span>CAFE ON SEOUL</span><span class="date"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+'use strict';
+
+const CONFIG = { shotsPerSession: 4, countdownSeconds: 3, showQr: true };
+
+const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B';
+
+const FILTERS = [
+  { id: 'none',  label: 'ORIGINAL',  css: 'none', sw: 'linear-gradient(135deg,#cfc6b3,#ece4d3)' },
+  { id: 'warm',  label: 'WARM',      css: 'sepia(.28) saturate(1.3) contrast(1.04) brightness(1.03)', sw: 'linear-gradient(135deg,#d9b184,#f0dcc0)' },
+  { id: 'cool',  label: 'COOL',      css: 'saturate(1.05) hue-rotate(-12deg) contrast(1.05) brightness(1.02)', sw: 'linear-gradient(135deg,#8ba7c4,#d5e2ee)' },
+  { id: 'faded', label: '90s FADE',  css: 'saturate(.72) contrast(.88) brightness(1.1) sepia(.12)', sw: 'linear-gradient(135deg,#c2b8a8,#e8e2d8)' },
+  { id: 'punch', label: 'CONTRAST',  css: 'contrast(1.35) saturate(1.15)', sw: 'linear-gradient(135deg,#3a3a3a,#e5e0d4)' },
+  { id: 'glow',  label: 'SOFT GLOW', css: 'brightness(1.12) saturate(.92) contrast(.94) blur(.3px)', sw: 'linear-gradient(135deg,#efe6da,#fffaf0)' },
+  { id: 'house', label: 'HOUSE',     css: 'sepia(.3) hue-rotate(58deg) saturate(1.5) contrast(1.05)', sw: 'linear-gradient(135deg,#1f5236,#8fae95)' },
+];
+
+const FRAMES = [
+  { id: 'white', label: 'CLASSIC WHITE', bg: '#FFFDF8', ink: GREEN },
+  { id: 'green', label: 'FOREST',        bg: GREEN,     ink: CREAM },
+  { id: 'cream', label: 'CREAM',         bg: '#EADFC4', ink: GREEN },
+  { id: 'ink',   label: 'INK',           bg: '#141414', ink: CREAM },
+];
+
+const pill  = (bg, fg, extra) => Object.assign({ background: bg, color: fg, padding: '10px 16px', fontFamily: "'IBM Plex Sans KR', sans-serif", fontWeight: 700, fontSize: '19px', borderRadius: '999px', whiteSpace: 'nowrap' }, extra || {});
+const glyph = (fg, size) => ({ color: fg, fontSize: (size || 40) + 'px', lineHeight: 1, fontFamily: "'Archivo', sans-serif", textShadow: '0 2px 6px rgba(0,0,0,.18)' });
+const tape  = (bg, fg) => ({ background: bg, color: fg, padding: '8px 20px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '.2em', fontWeight: 600, opacity: .92 });
+const box   = (bg, fg) => ({ background: bg, color: fg, padding: '9px 14px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '14px', letterSpacing: '.14em', fontWeight: 600 });
+
+const SETS = [
+  { id: 'ko', label: '한글 / KOREAN', items: [
+    { label: '오늘 최고', style: pill(BUTTER, GREEN) },
+    { label: '사랑해', style: pill('#D94F4F', '#FFF8EE') },
+    { label: '서울', style: pill(GREEN, CREAM) },
+    { label: '화이팅!', style: pill('#FFF8EE', GREEN, { border: '2px solid ' + GREEN }) },
+    { label: '대박', style: pill(TEAK, '#FFF8EE') },
+    { label: '귀여워', style: pill('#F2A8C0', '#5A1830') },
+    { label: '커피 한 잔', style: pill('#FFF8EE', TEAK, { border: '2px solid ' + TEAK }) },
+    { label: '안녕!', style: pill(BUTTER, GREEN) },
+    { label: '또 올게요', style: pill(GREEN, CREAM) },
+  ] },
+  { id: 'cafe', label: 'CAFE', items: [
+    { label: 'SE/O UL', style: box(GREEN, CREAM) },
+    { label: 'CAFE ON SEOUL', style: box(CREAM, GREEN) },
+    { label: 'ICED AMERICANO', style: box(TEAK, '#FFF8EE') },
+    { label: 'ONE MORE CUP', style: box(BUTTER, GREEN) },
+    { label: '5,000₩', style: box('#FFF8EE', GREEN) },
+    { label: 'OPEN 08:00', style: box(GREEN, BUTTER) },
+  ] },
+  { id: 'doodle', label: 'DOODLE', items: [
+    { label: '♥', style: glyph('#D94F4F', 46) },
+    { label: '★', style: glyph(BUTTER, 46) },
+    { label: '✦', style: glyph('#FFF8EE', 40) },
+    { label: '✿', style: glyph('#F2A8C0', 44) },
+    { label: '✧', style: glyph(BUTTER, 34) },
+    { label: '❋', style: glyph(GREEN, 42) },
+    { label: '♡♡♡', style: glyph('#FFF8EE', 30) },
+  ] },
+  { id: 'y2k', label: 'Y2K', items: [
+    { label: '★ 2026 ★', style: tape(BUTTER, GREEN) },
+    { label: 'FILM 400', style: tape('#141414', '#F7F1E3') },
+    { label: 'ISO 800 / f2.8', style: tape('rgba(247,241,227,.85)', '#141414') },
+    { label: '////////', style: tape('#D94F4F', '#FFF8EE') },
+    { label: 'REC ●', style: tape('rgba(20,20,20,.75)', '#FF5A5A') },
+    { label: 'SEOUL 서울', style: tape(GREEN, CREAM) },
+  ] },
+  { id: 'season', label: 'SEASON', items: [
+    { label: '여름 SUMMER', style: pill('#4FA3C4', '#FFF8EE') },
+    { label: '8월', style: pill(BUTTER, GREEN) },
+    { label: '더운 날', style: pill('#FFF8EE', '#4FA3C4', { border: '2px solid #4FA3C4' }) },
+    { label: '빙수 시즌', style: pill('#F2A8C0', '#5A1830') },
+  ] },
+];
+
+const STEP_ORDER = ['frame', 'shoot', 'select', 'filter', 'decorate', 'print'];
+const STEP_LABELS = { frame: '01 FILM', shoot: '02 SHOOT', select: '03 PICK', filter: '04 FILTER', decorate: '05 STICKERS', print: '06 PRINT' };
+
+const $ = id => document.getElementById(id);
+
+const state = {
+  screen: 'attract',
+  frame: 'white',
+  filter: 'none',
+  chosenIdx: -1,
+  setIdx: 0,
+  stickers: [],   // { id, label, base, x, y, rot }
+  seq: 0,
+};
+
+let shots = [];        // captured 640x640 canvases
+let stream = null;
+let running = false;
+let shotIdx = 0;
+let nextAt = 0;
+let loop = null;
+const timers = [];
+
+function wait(ms) { return new Promise(r => timers.push(setTimeout(r, ms))); }
+function applyStyle(el, style) { for (const k in style) el.style[k] = style[k]; }
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + String(d.getDate()).padStart(2, '0');
+}
+
+/* ---------- screen routing ---------- */
+
+function show(screen) {
+  const prev = state.screen;
+  state.screen = screen;
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  $('scr-' + screen).classList.add('active');
+  $('chrome').classList.toggle('hidden', screen === 'attract');
+  renderSteps();
+  if (screen === 'shoot' && prev !== 'shoot') startCam();
+  if (screen !== 'shoot' && prev === 'shoot') stopCam();
+  if (screen === 'select') renderPicks();
+  if (screen === 'filter' || screen === 'decorate' || screen === 'print') renderPolaroids();
+  if (screen === 'decorate') { renderTabs(); renderPalette(); renderStickers(); }
+}
+
+function renderSteps() {
+  const cur = STEP_ORDER.indexOf(state.screen);
+  $('steps').innerHTML = '';
+  STEP_ORDER.forEach((id, i) => {
+    const d = document.createElement('div');
+    d.className = 'step' + (i === cur ? ' cur' : '');
+    d.textContent = STEP_LABELS[id];
+    $('steps').appendChild(d);
+  });
+}
+
+/* ---------- camera ---------- */
+
+async function startCam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 1280, facingMode: 'user' }, audio: false });
+    const v = $('cam');
+    v.srcObject = stream;
+    v.play().catch(() => {});
+    $('cam-error').classList.remove('on');
+  } catch (e) {
+    $('cam-error').classList.add('on');
+  }
+}
+function stopCam() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  $('cam').srcObject = null;
+}
+
+function capture(i) {
+  const v = $('cam');
+  const D = 640;
+  const c = document.createElement('canvas'); c.width = D; c.height = D;
+  const g = c.getContext('2d');
+  if (v && v.videoWidth) {
+    const s = Math.min(v.videoWidth, v.videoHeight);
+    const sx = (v.videoWidth - s) / 2, sy = (v.videoHeight - s) / 2;
+    g.save(); g.translate(D, 0); g.scale(-1, 1);
+    g.drawImage(v, sx, sy, s, s, 0, 0, D, D); g.restore();
+  } else {
+    g.fillStyle = '#EFE4CB'; g.fillRect(0, 0, D, D);
+    g.strokeStyle = 'rgba(18,59,38,.14)'; g.lineWidth = 12;
+    for (let x = -D; x < D * 2; x += 34) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + D, D); g.stroke(); }
+    g.fillStyle = GREEN; g.textAlign = 'center';
+    g.font = '600 32px "IBM Plex Mono", monospace';
+    g.fillText('SHOT ' + i, D / 2, D / 2 - 8);
+    g.font = '400 19px "IBM Plex Mono", monospace';
+    g.fillText('SIMULATED — NO CAMERA', D / 2, D / 2 + 30);
+  }
+  return c;
+}
+
+/* ---------- shoot sequence ---------- */
+
+function renderSlots() {
+  const grid = $('slot-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < CONFIG.shotsPerSession; i++) {
+    const d = document.createElement('div');
+    d.className = 'slot' + (i < shots.length ? ' filled' : '');
+    if (i < shots.length) {
+      d.appendChild(shots[i].cloneNode ? cloneShot(i) : shots[i]);
+    } else {
+      const n = document.createElement('div');
+      n.className = 'num';
+      n.textContent = '0' + (i + 1);
+      d.appendChild(n);
+    }
+    grid.appendChild(d);
+  }
+}
+
+function cloneShot(i) {
+  const src = shots[i];
+  const c = document.createElement('canvas');
+  c.width = src.width; c.height = src.height;
+  c.getContext('2d').drawImage(src, 0, 0);
+  return c;
+}
+
+function updateShootTitles() {
+  $('shoot-title-ko').textContent = running ? '움직이지 마세요' : CONFIG.shotsPerSession + '컷을 찍습니다';
+  $('shoot-title-en').textContent = running
+    ? 'HOLD STILL · ' + shots.length + '/' + CONFIG.shotsPerSession
+    : CONFIG.countdownSeconds + '-SECOND COUNTDOWN BEFORE EACH SHOT';
+  $('btn-shoot').style.display = running ? 'none' : '';
+  $('btn-cancel-shoot').style.display = running ? '' : 'none';
+}
+
+function setCount(n) {
+  const el = $('countdown');
+  if (n == null) { el.classList.remove('on'); el.textContent = ''; }
+  else { el.classList.add('on'); el.textContent = n; }
+}
+
+function flash() {
+  const el = $('flash');
+  el.classList.remove('on');
+  void el.offsetWidth; // restart animation
+  el.classList.add('on');
+}
+
+function startShoot() {
+  if (running) return;
+  running = true;
+  shots = [];
+  shotIdx = 0;
+  state.chosenIdx = -1;
+  nextAt = Date.now() + CONFIG.countdownSeconds * 1000;
+  renderSlots();
+  updateShootTitles();
+  setCount(CONFIG.countdownSeconds);
+  startLoop();
+}
+
+function startLoop() { stopLoop(); loop = setInterval(frame, 120); }
+function stopLoop() { if (loop) { clearInterval(loop); loop = null; } }
+
+function frame() {
+  if (!running) { stopLoop(); return; }
+  const left = nextAt - Date.now();
+  if (left > 0) {
+    setCount(Math.min(CONFIG.countdownSeconds, Math.max(1, Math.ceil(left / 1000))));
+    return;
+  }
+  try { shots.push(capture(shotIdx + 1)); } catch (e) { console.warn('capture failed', e); }
+  shotIdx++;
+  setCount(null);
+  flash();
+  renderSlots();
+  updateShootTitles();
+  if (shotIdx >= CONFIG.shotsPerSession) {
+    running = false; stopLoop();
+    timers.push(setTimeout(() => { updateShootTitles(); show('select'); }, 700));
+    return;
+  }
+  nextAt = Date.now() + 700 + CONFIG.countdownSeconds * 1000;
+}
+
+function cancelShoot() {
+  running = false; stopLoop();
+  shots = [];
+  setCount(null);
+  renderSlots();
+  updateShootTitles();
+}
+
+/* ---------- select ---------- */
+
+function renderPicks() {
+  const list = $('pick-list');
+  list.innerHTML = '';
+  shots.forEach((cv, i) => {
+    const d = document.createElement('div');
+    d.className = 'pick' + (state.chosenIdx === i ? ' sel' : '');
+    d.appendChild(cloneShot(i));
+    const b = document.createElement('div');
+    b.className = 'badge';
+    b.textContent = '0' + (i + 1);
+    d.appendChild(b);
+    d.addEventListener('click', () => { state.chosenIdx = i; renderPicks(); });
+    list.appendChild(d);
+  });
+  $('btn-select-next').classList.toggle('ready', state.chosenIdx >= 0);
+}
+
+/* ---------- polaroid rendering (filter / decorate / print) ---------- */
+
+function frameDef() { return FRAMES.find(f => f.id === state.frame) || FRAMES[0]; }
+function filterCss() { const f = FILTERS.find(x => x.id === state.filter); return f ? f.css : 'none'; }
+
+function renderPolaroids() {
+  const f = frameDef();
+  ['pol-filter', 'pol-decorate', 'pol-print'].forEach(id => {
+    const pol = $(id);
+    pol.style.background = f.bg;
+    pol.style.color = f.ink;
+    const cv = pol.querySelector('canvas');
+    const src = shots[state.chosenIdx];
+    if (src) {
+      if (cv.width !== src.width) { cv.width = src.width; cv.height = src.height; }
+      cv.getContext('2d').drawImage(src, 0, 0);
+    }
+    cv.style.filter = filterCss();
+    pol.querySelector('.date').textContent = todayStr();
+  });
+  renderFilterGrid();
+}
+
+function renderFilterGrid() {
+  const grid = $('filter-grid');
+  grid.innerHTML = '';
+  FILTERS.forEach(fl => {
+    const d = document.createElement('div');
+    d.className = 'filter-card' + (state.filter === fl.id ? ' sel' : '');
+    const sw = document.createElement('div');
+    sw.className = 'sw';
+    sw.style.background = fl.sw;
+    const n = document.createElement('div');
+    n.className = 'name';
+    n.textContent = fl.label;
+    d.appendChild(sw); d.appendChild(n);
+    d.addEventListener('click', () => { state.filter = fl.id; renderPolaroids(); });
+    grid.appendChild(d);
+  });
+}
+
+/* ---------- decorate ---------- */
+
+function renderTabs() {
+  const tabs = $('set-tabs');
+  tabs.innerHTML = '';
+  SETS.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'set-tab' + (state.setIdx === i ? ' sel' : '');
+    d.textContent = s.label;
+    d.addEventListener('click', () => { state.setIdx = i; renderTabs(); renderPalette(); });
+    tabs.appendChild(d);
+  });
+}
+
+function renderPalette() {
+  const pal = $('palette');
+  pal.innerHTML = '';
+  (SETS[state.setIdx] || SETS[0]).items.forEach(it => {
+    const d = document.createElement('div');
+    d.textContent = it.label;
+    applyStyle(d, it.style);
+    d.addEventListener('click', () => addSticker(it));
+    pal.appendChild(d);
+  });
+}
+
+function addSticker(item) {
+  state.stickers.push({
+    id: ++state.seq,
+    label: item.label,
+    base: item.style,
+    x: 30 + Math.random() * 40,
+    y: 28 + Math.random() * 44,
+    rot: Math.random() * 16 - 8,
+  });
+  renderStickers();
+}
+
+function stickerEl(s, draggable) {
+  const d = document.createElement('div');
+  d.className = 'sticker';
+  d.textContent = s.label;
+  applyStyle(d, s.base);
+  d.style.position = 'absolute';
+  d.style.left = s.x + '%';
+  d.style.top = s.y + '%';
+  d.style.transform = 'translate(-50%,-50%) rotate(' + s.rot + 'deg)';
+  d.style.cursor = draggable ? 'grab' : 'default';
+  if (draggable) d.addEventListener('pointerdown', e => startDrag(s.id, e, d));
+  return d;
+}
+
+function renderStickers() {
+  const host = $('deco-stickers');
+  host.innerHTML = '';
+  state.stickers.forEach(s => host.appendChild(stickerEl(s, true)));
+  $('sticker-count').textContent = state.stickers.length + ' STICKERS PLACED';
+}
+
+function startDrag(id, e, el) {
+  e.preventDefault();
+  const area = $('deco-photo');
+  const move = ev => {
+    const r = area.getBoundingClientRect();
+    const x = Math.max(2, Math.min(98, ((ev.clientX - r.left) / r.width) * 100));
+    const y = Math.max(2, Math.min(98, ((ev.clientY - r.top) / r.height) * 100));
+    const s = state.stickers.find(s => s.id === id);
+    if (s) {
+      s.x = x; s.y = y;
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+    }
+  };
+  const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up);
+}
+
+/* ---------- print ---------- */
+
+function qrCells() {
+  const grid = $('qr-grid');
+  if (grid.childElementCount) return;
+  let seed = 7;
+  for (let i = 0; i < 169; i++) {
+    seed = (seed * 1103515245 + 12345) % 2147483648;
+    const r = Math.floor(i / 13), c = i % 13;
+    const finder = (r < 3 && c < 3) || (r < 3 && c > 9) || (r > 9 && c < 3);
+    const on = finder || (seed / 2147483648) > 0.52;
+    const d = document.createElement('div');
+    d.style.background = on ? GREEN : 'transparent';
+    grid.appendChild(d);
+  }
+}
+
+function startPrint() {
+  show('print');
+  const host = $('print-stickers');
+  host.innerHTML = '';
+  state.stickers.forEach(s => host.appendChild(stickerEl(s, false)));
+  $('qr-card').style.display = CONFIG.showQr ? '' : 'none';
+  qrCells();
+  $('print-done').classList.remove('on');
+  $('print-spinner').classList.add('on');
+  $('eject').classList.remove('on');
+  $('print-title-ko').textContent = '인화 중입니다';
+  $('print-title-en').textContent = 'DO NOT PULL THE FILM · 15 SECONDS';
+  timers.push(setTimeout(() => {
+    $('print-spinner').classList.remove('on');
+    $('print-done').classList.add('on');
+    $('eject').classList.add('on');
+    $('print-title-ko').textContent = '사진이 나왔어요';
+    $('print-title-en').textContent = 'TAKE YOUR POLAROID — HOLD THE EDGES, LET IT DEVELOP FOR 2 MINUTES';
+  }, 3200));
+}
+
+/* ---------- frame choice ---------- */
+
+function renderFrames() {
+  const list = $('frame-list');
+  list.innerHTML = '';
+  FRAMES.forEach(fr => {
+    const card = document.createElement('div');
+    card.className = 'frame-card' + (state.frame === fr.id ? ' sel' : '');
+    const film = document.createElement('div');
+    film.className = 'film';
+    film.style.background = fr.bg;
+    film.style.color = fr.ink;
+    film.innerHTML = '<div class="ph"></div><div class="cap">CAFE ON SEOUL</div>';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = fr.label;
+    card.appendChild(film); card.appendChild(name);
+    card.addEventListener('click', () => { state.frame = fr.id; renderFrames(); });
+    list.appendChild(card);
+  });
+}
+
+/* ---------- reset ---------- */
+
+function reset() {
+  stopCam();
+  running = false; stopLoop();
+  timers.forEach(clearTimeout); timers.length = 0;
+  shots = [];
+  Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [] });
+  setCount(null);
+  renderFrames();
+  renderSlots();
+  updateShootTitles();
+  renderStickers();
+  show('attract');
+}
+
+/* ---------- stage scaling ---------- */
+
+function fitStage() {
+  const s = Math.min(window.innerWidth / 1280, window.innerHeight / 800);
+  $('stage').style.transform = 'scale(' + s + ')';
+}
+window.addEventListener('resize', fitStage);
+
+/* ---------- wire up ---------- */
+
+$('scr-attract').addEventListener('click', () => show('frame'));
+$('restart').addEventListener('click', reset);
+$('btn-frame-next').addEventListener('click', () => { shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
+$('btn-shoot').addEventListener('click', startShoot);
+$('btn-cancel-shoot').addEventListener('click', cancelShoot);
+$('btn-retake').addEventListener('click', () => { running = false; stopLoop(); shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
+$('btn-select-next').addEventListener('click', () => { if (state.chosenIdx >= 0) show('filter'); });
+$('btn-decorate').addEventListener('click', () => show('decorate'));
+$('btn-back-filter').addEventListener('click', () => show('filter'));
+$('btn-undo').addEventListener('click', () => { state.stickers.pop(); renderStickers(); });
+$('btn-clear').addEventListener('click', () => { state.stickers = []; renderStickers(); });
+$('btn-print').addEventListener('click', startPrint);
+$('btn-done').addEventListener('click', reset);
+
+renderFrames();
+renderSlots();
+updateShootTitles();
+fitStage();
+show('attract');
+</script>
+</body>
+</html>
