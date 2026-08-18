@@ -114,15 +114,32 @@ which one is acceptable where. Current picks: Jessica for Korean, Lily for Malay
 with an English gloss. Read the rules before adding a line — the constraint that
 matters most is that a line must survive its 200th play in a small room.
 
-**One line ships**: the welcome, on `show('frame')` from attract, as
-`voice/ko-welcome.mp3` and `voice/ms-welcome.mp3`. Everything else in `lines.json`
-is written but unrecorded. The booth says hello and then stays quiet, which is also
-why the countdown is beeps — a voice counting to three four times a session is the
-fastest way to make a booth tiresome.
+**Nine lines ship in each language**, as `voice/<lang>-<id>.mp3`: `welcome`,
+`ready`, `between`, `between_alt`, `select`, `filter`, `decorate`, `done`, `qr`.
+Four more are written and deliberately **not** recorded — each carries a `role` of
+`retired` in `lines.json` with the reason attached. They are worth reading before
+adding a line, because they are the four ways a line fails here:
 
-The retired `countdown` line is kept in `lines.json` on purpose: three counted
-numbers expose a voice's rhythm and accent faster than any other phrase, so it is
-the right thing to audition a replacement voice with.
+- `countdown` — the count is beeps. A voice counting to three four times a session
+  is the fastest way to make a booth tiresome. It stays in the file because three
+  counted numbers expose a voice's rhythm and accent faster than any other phrase,
+  which makes it the right thing to audition a replacement voice with.
+- `frame` — the welcome already lands on that screen. Two lines back to back on one
+  screen is over-talking.
+- `printing` — it would sit on top of the 3.16 s eject motor, and the motor says
+  "printing" better than words do.
+- `last` — it belongs in a gap that already carries a `between` line.
+
+**A line written for a gap must be shorter than the gap.** The between-shot window
+is `CONFIG.shotGapMs` of clear air before the next countdown pip, which is room for
+one word. The first drafts of `between_alt` ("그거예요!", "Ha, macam tu!") measured
+1.4 s each and were re-written to single words; the gap was widened from 700 ms to
+1200 ms to give even those margin. Measure the trimmed file — do not trust how long
+a phrase looks on the page.
+
+Length is the thing to check on every take. Nothing else about these lines needed
+correcting, but `ms-qr` came back at 3.4 s and `ko-done` at 3.0 s against a stated
+2.5 s ceiling, and only measurement catches that.
 
 ## Music
 

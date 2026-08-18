@@ -16,29 +16,30 @@
     "Under 2.5 seconds. Guests are posing, not listening.",
     "Never explain the interface — the screen already says it. Voice carries warmth, the screen carries instruction.",
     "Never apologise. A failed upload gets silence, not a voice line.",
-    "Every line must survive its 200th play in a small room."
+    "Every line must survive its 200th play in a small room.",
+    "A line written for a gap must be shorter than the gap. The between-shot window is 700 ms of clear air before the next countdown pip, which is room for one word, not a sentence."
   ],
 
   "lines": {
     "wake": {
       "role": "shipped",
-      "hook": "SHIPPED as voice/ko-welcome.mp3 and voice/ms-welcome.mp3 — fires on show('frame') from attract. The first thing a guest ever hears, and the only voice line in the booth.",
+      "hook": "show('frame') from attract — the first thing a guest ever hears. Doubles as the frame screen's line; there is no second line on that screen.",
       "ko": "[warmly] 어서 오세요! 오늘 잘 나올 것 같은데요?",
       "ko_gloss": "Welcome! I have a feeling these are going to come out well.",
       "ms": "[warmly] Selamat datang! Rasanya cantik ni.",
       "ms_gloss": "Welcome! I reckon this'll turn out lovely."
     },
     "frame": {
-      "role": "transition",
-      "hook": "the frame chooser",
+      "role": "retired",
+      "hook": "NOT USED — wake already lands on this screen, and the screen title already says to pick a colour. Two lines back to back on one screen is over-talking.",
       "ko": "마음에 드는 색으로 골라 주세요.",
       "ko_gloss": "Pick whichever colour you like.",
       "ms": "Pilih warna yang anda suka.",
       "ms_gloss": "Pick the colour you like."
     },
     "ready": {
-      "role": "transition",
-      "hook": "show('shoot') before the first countdown",
+      "role": "shipped",
+      "hook": "show('shoot'), before the guest presses the shutter button — the whole screen is idle until they do, so this line has all the air it needs.",
       "ko": "[excited] 네 장 찍을게요. 준비되셨어요?",
       "ko_gloss": "I'll take four. Ready?",
       "ms": "[excited] Empat gambar ya. Sedia?",
@@ -53,39 +54,39 @@
       "ms_gloss": "One... two... three!"
     },
     "between": {
-      "role": "transition",
-      "hook": "the 700 ms gap between shots — needs 2 or 3 variants so four shots do not repeat one line",
-      "ko": "[cheerful] 좋아요! 한 장 더!",
-      "ko_gloss": "Lovely! One more!",
-      "ms": "[cheerful] Cantik! Sekali lagi!",
-      "ms_gloss": "Lovely! Once more!"
+      "role": "shipped",
+      "hook": "the gap after shots 1 and 3. One word: the next pip is 700 ms behind the shutter, so anything longer talks over the count.",
+      "ko": "[cheerful] 좋아요!",
+      "ko_gloss": "Lovely!",
+      "ms": "[cheerful] Cantik!",
+      "ms_gloss": "Lovely!"
     },
     "between_alt": {
-      "role": "transition",
-      "hook": "second variant for the same gap",
-      "ko": "[cheerful] 그거예요! 계속 그렇게!",
-      "ko_gloss": "That's the one! Keep going!",
-      "ms": "[cheerful] Ha, macam tu! Teruskan!",
-      "ms_gloss": "Yes, like that! Keep it up!"
+      "role": "shipped",
+      "hook": "the gap after shot 2 — alternates with between so four shots do not repeat one word. 'Ha, macam tu!' and '그거예요!' were the first draft and read 1.4 s each, half a second over the gap.",
+      "ko": "[cheerful] 완벽해요!",
+      "ko_gloss": "Perfect!",
+      "ms": "[cheerful] Lawa!",
+      "ms_gloss": "Gorgeous!"
     },
     "last": {
-      "role": "transition",
-      "hook": "before the fourth and final shot",
+      "role": "retired",
+      "hook": "NOT USED — it belongs in the gap before the fourth shot, but that gap already carries a between line and the slot counter already shows 3/4. Kept because it is the right line if the inter-shot gap is ever widened.",
       "ko": "마지막이에요. 제일 예쁘게!",
       "ko_gloss": "Last one. Make it the prettiest!",
       "ms": "Yang terakhir. Bagi paling cantik!",
       "ms_gloss": "The last one. Give me your best!"
     },
     "select": {
-      "role": "transition",
-      "hook": "show('select')",
+      "role": "shipped",
+      "hook": "show('select'), 700 ms after the fourth shutter",
       "ko": "제일 잘 나온 걸로 골라 주세요.",
       "ko_gloss": "Choose the one that came out best.",
       "ms": "Pilih yang paling cantik.",
       "ms_gloss": "Choose the nicest one."
     },
     "filter": {
-      "role": "transition",
+      "role": "shipped",
       "hook": "show('filter')",
       "ko": "분위기 한번 바꿔 볼까요?",
       "ko_gloss": "Shall we change the mood a bit?",
@@ -93,7 +94,7 @@
       "ms_gloss": "Want to change the mood a little?"
     },
     "decorate": {
-      "role": "transition",
+      "role": "shipped",
       "hook": "show('decorate')",
       "ko": "스티커로 꾸며 보세요.",
       "ko_gloss": "Try decorating it with stickers.",
@@ -101,24 +102,24 @@
       "ms_gloss": "Decorate it with stickers."
     },
     "printing": {
-      "role": "transition",
-      "hook": "startPrint(), under the eject motor",
+      "role": "retired",
+      "hook": "NOT USED — it would sit on top of the 3.16 s eject motor, and the motor already says 'printing' better than words do. The screen carries the instruction; done is the payoff.",
       "ko": "인화 중이에요. 조금만 기다려 주세요.",
       "ko_gloss": "It's printing. Just a moment please.",
       "ms": "Tengah cetak. Tunggu sekejap ya.",
       "ms_gloss": "It's printing. Wait a moment, yeah."
     },
     "done": {
-      "role": "core",
-      "hook": "the print-done beat — the last thing a guest hears, and the only line carrying real instruction",
+      "role": "shipped",
+      "hook": "the eject lands, 3.2 s into startPrint() — the only line carrying real instruction, so nothing is allowed to cut it off",
       "ko": "[warmly] 사진 나왔어요! 가장자리를 잡으세요.",
       "ko_gloss": "Your photo's out! Hold it by the edges.",
       "ms": "[warmly] Dah siap! Pegang tepi gambar ya.",
       "ms_gloss": "It's ready! Hold it by the edges, yeah."
     },
     "qr": {
-      "role": "transition",
-      "hook": "setQrState('ready') — skipped entirely when the upload failed",
+      "role": "shipped",
+      "hook": "setQrState('ready'), which can resolve while done is still speaking — queued behind it rather than interrupting. Skipped entirely when the upload failed.",
       "ko": "큐알 찍으면 파일도 가져가실 수 있어요.",
       "ko_gloss": "Scan the QR and you can take the file too.",
       "ms": "Imbas QR untuk simpan gambar digital.",

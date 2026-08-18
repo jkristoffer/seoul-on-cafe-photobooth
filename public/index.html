@@ -493,11 +493,16 @@
 
 const CONFIG = {
   shotsPerSession: 4, countdownSeconds: 3, showQr: true, idleResetSeconds: 120,
+  // Clear air between one shutter and the next countdown pip. It is also the
+  // window the between-shot line has to fit inside, so shortening it below the
+  // longest of those lines (~1.0 s) puts the attendant on top of the count.
+  shotGapMs: 1200,
   sound: true,        // master switch for everything audible
   volume: 1,
   music: true,        // the two beds, independently killable
   musicVolume: 1,
   voice: 'ko',        // welcome language when a guest taps without choosing one
+  chatter: true,      // the transition lines; the welcome and print lines ignore this
 };
 
 const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B';
@@ -614,16 +619,31 @@ const SFX = {
   count_go: 'assets/sfx/count_go.mp3',
   shutter:  'assets/sfx/shutter.mp3',
   eject:    'assets/sfx/eject.mp3',
-  'voice-ko': 'assets/sfx/voice/ko-welcome.mp3',
-  'voice-ms': 'assets/sfx/voice/ms-welcome.mp3',
   'music-attract': 'assets/sfx/music/attract.mp3',
   'music-shoot':   'assets/sfx/music/shoot.mp3',
 };
+
+// Every line exists in both languages; the guest's pick at the attract screen
+// chooses which set plays. Scripts and rationale live in tools/sfx/lines.json —
+// several written lines are deliberately unrecorded and are marked there.
+const VOICE_LINES = ['welcome', 'ready', 'between', 'between_alt', 'select', 'filter', 'decorate', 'done', 'qr'];
+for (const lang of ['ko', 'ms'])
+  for (const id of VOICE_LINES) SFX[`voice-${lang}-${id}`] = `assets/sfx/voice/${lang}-${id}.mp3`;
+
+// The bookends always play. Everything else is chatter: ten spoken lines a
+// session is a lot in a small room, so staff can switch the middle off without
+// losing the greeting or the one line that tells a guest how to hold the print.
+const VOICE_ALWAYS = { welcome: 1, done: 1 };
+
+// Which line each screen announces, played a beat *after* the screen turns over
+// so the voice does not talk across the transition it belongs to.
+const SCREEN_VOICE = { frame: 'welcome', shoot: 'ready', select: 'select', filter: 'filter', decorate: 'decorate' };
 
 const audio = {
   ctx: null, master: null, musicBus: null, buffers: {},
   music: null, musicName: null,
   wantMusic: null, wantLoop: false,   // a bed asked for before its buffer decoded
+  voice: null, voiceUntil: 0,         // at most one line speaks at a time
 };
 
 function audioInit() {
@@ -676,6 +696,44 @@ function play(name, opts = {}) {
   g.connect(opts.music ? audio.musicBus : audio.master);
   src.start();
   return { src, g };
+}
+
+// Voice is serialised through one slot, because two lines at once is unintelligible
+// and the booth generates overlaps naturally: the QR resolves while the print line
+// is still speaking, and a guest can leave a screen before its line has finished.
+//
+// Which of the two happens is the caller's call. An unqueued line replaces whatever
+// is speaking — it belongs to the screen the guest is on now, and the old line
+// belongs to one they have left. A queued line waits, and is how `done` keeps the
+// floor: it carries the only real instruction in the booth.
+function playVoice(id, opts = {}) {
+  if (!CONFIG.sound || !audio.ctx) return;
+  if (!CONFIG.chatter && !VOICE_ALWAYS[id]) return;
+  const buf = audio.buffers[`voice-${state.lang}-${id}`];
+  if (!buf) return;
+  const now = audio.ctx.currentTime;
+  const at = opts.queue ? Math.max(now, audio.voiceUntil) : now;
+  if (!opts.queue) stopVoice();
+  const src = audio.ctx.createBufferSource();
+  const g = audio.ctx.createGain();
+  src.buffer = buf;
+  src.connect(g);
+  g.connect(audio.master);
+  src.start(at);
+  audio.voice = { src, g };
+  audio.voiceUntil = at + buf.duration;
+}
+
+// Faded rather than cut: stopping a buffer mid-vowel clicks.
+function stopVoice(fade = 0.08) {
+  audio.voiceUntil = 0;
+  if (!audio.voice) return;
+  const { src, g } = audio.voice;
+  const t = audio.ctx.currentTime;
+  g.gain.setValueAtTime(g.gain.value, t);
+  g.gain.linearRampToValueAtTime(0.0001, t + fade);
+  try { src.stop(t + fade); } catch (e) { /* not started yet, or already stopped */ }
+  audio.voice = null;
 }
 
 function playMusic(name, loop) {
@@ -957,6 +1015,18 @@ function show(screen) {
   if (screen === 'shoot') { if (audio.musicName === 'music-attract') stopMusic(0.5); }
   else playMusic('music-attract', true);
 
+  // Announce the screen a beat after it turns over. Re-entering a screen the
+  // guest has already seen — stepping back from decorate to filter — repeats its
+  // line, which is what a person would do.
+  // The screen check inside the timer matters: a guest tapping through faster
+  // than 280 ms would otherwise be announced two screens behind themselves.
+  if (screen !== prev) {
+    stopVoice();
+    if (SCREEN_VOICE[screen]) timers.push(setTimeout(() => {
+      if (state.screen === screen) playVoice(SCREEN_VOICE[screen]);
+    }, 280));
+  }
+
   pokeIdle();
 }
 
@@ -1070,7 +1140,7 @@ function setCount(n) {
 
 // frame() ticks every 120 ms and re-sets the same number repeatedly, so the beep
 // is tied to the number *changing*. It is deliberately separate from setCount:
-// during the 700 ms gap between shots the display already shows the next "3"
+// during the gap between shots the display already shows the next "3"
 // while the countdown has not restarted, and beeping there lands a pip barely
 // 100 ms behind the shutter, which sounds like a stutter rather than a count.
 let lastBeep = null;
@@ -1129,12 +1199,18 @@ function frame() {
     timers.push(setTimeout(() => { updateShootTitles(); show('select'); }, 700));
     return;
   }
-  nextAt = Date.now() + 700 + CONFIG.countdownSeconds * 1000;
+  // One word of encouragement per gap, alternating so four shots do not repeat
+  // the same one. It starts clear of the shutter transient and finishes inside
+  // shotGapMs, before the next countdown pip.
+  const line = shotIdx % 2 ? 'between' : 'between_alt';
+  timers.push(setTimeout(() => { if (running) playVoice(line); }, 180));
+  nextAt = Date.now() + CONFIG.shotGapMs + CONFIG.countdownSeconds * 1000;
 }
 
 function cancelShoot() {
   running = false; stopLoop();
   stopMusic(0.3);
+  stopVoice();
   shots = [];
   setCount(null);
   countBeep(null);
@@ -2122,12 +2198,17 @@ async function startPrint() {
   $('eject').classList.add('on');
   $('print-title-lead').textContent = t('printDone');
   $('print-title-sub').textContent = 'TAKE YOUR POLAROID — HOLD THE EDGES, LET IT DEVELOP FOR 2 MINUTES';
+  playVoice('done');   // held until here rather than spoken over the eject motor
 
   const result = await uploaded;
   if (state.screen !== 'print') return;  // guest already restarted
   if (result) {
     $('qr-img').src = result.qr;
     setQrState('ready', result.id);
+    // The upload usually resolves while `done` is still speaking, so this one
+    // queues behind it. A failed upload gets silence: the card explains itself,
+    // and an apology is not the last thing a guest should hear.
+    playVoice('qr', { queue: true });
   } else {
     setQrState('failed');
   }
@@ -2161,6 +2242,7 @@ function reset() {
   stopCam();
   running = false; stopLoop();
   timers.forEach(clearTimeout); timers.length = 0;
+  stopVoice();
   shots = [];
   Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [], printing: false, lang: CONFIG.voice });
   $('qr-img').removeAttribute('src');
@@ -2227,10 +2309,10 @@ document.addEventListener('visibilitychange', () => {
 function startSession(lang) {
   applyLang(lang);
   audioUnlock();
+  // The welcome is the frame screen's line, so show() speaks it — there is no
+  // second line on that screen. applyLang() must run first: playVoice() picks
+  // its buffer off state.lang.
   show('frame');
-  // A beat after the screen turns over, so the welcome does not talk over the
-  // transition it is announcing.
-  timers.push(setTimeout(() => play('voice-' + state.lang), 280));
 }
 
 document.querySelectorAll('.lang').forEach(b =>

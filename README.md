@@ -182,8 +182,32 @@ Three things are easy to get wrong here:
   sounds like a stutter. `countBeep()` only fires inside the real countdown
   window and is latched off at each capture.
 
-`CONFIG` carries `sound`, `volume`, `music` and `musicVolume`, so staff can kill
-the audio or just the music without touching the assets.
+`CONFIG` carries `sound`, `volume`, `music`, `musicVolume` and `chatter`, so staff
+can kill the audio, just the music, or just the talking without touching the assets.
+
+## Voice
+
+The attendant speaks nine times a session, in the guest's chosen language. Each
+line is announced by `show()` 280 ms after its screen turns over, so the voice
+never talks across the transition it belongs to.
+
+Voice is serialised through **one slot**, because the booth generates overlaps
+naturally and two lines at once is unintelligible. Which way an overlap resolves is
+the caller's choice: an unqueued line replaces whatever is speaking, since it
+belongs to the screen the guest is on now; a queued line waits. Only `qr` queues —
+it follows `done`, which carries the only real instruction in the booth and is not
+allowed to be cut off.
+
+- **A line written for a gap must be shorter than the gap.** The between-shot lines
+  are one word each because `CONFIG.shotGapMs` is all the clear air there is before
+  the next countdown pip. That gap is 1200 ms rather than 700 for exactly this
+  reason, which also lands the four-shot sequence at 15.6 s against the 16 s bed.
+- **Announce timers outlive their screen.** A guest tapping through faster than
+  280 ms would be announced two screens behind themselves, so the timer re-checks
+  `state.screen` before it speaks.
+- **`chatter: false` keeps the bookends.** The welcome and the print line ignore it.
+  Ten spoken lines a session is a lot in a small room, but a booth that never says
+  how to hold a developing polaroid is worse.
 
 ## Language
 
@@ -196,8 +220,7 @@ Tapping anywhere else on the attract screen starts the session in `CONFIG.voice`
 so a guest who does not want to make a choice is never blocked by one. Guessing
 from `navigator.language` would be wrong for most guests on a shared kiosk.
 
-The welcome is the only voice line in the booth. The rest of the script is written
-in `tools/sfx/lines.json` but deliberately unrecorded.
+The choice drives `state.lang`, which selects both the UI strings and the voice set.
 
 ## Kiosk operation
 
