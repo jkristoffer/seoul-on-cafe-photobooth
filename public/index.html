@@ -423,6 +423,7 @@ const FILTERS = [
   { id: 'punch', label: 'CONTRAST',  css: 'contrast(1.35) saturate(1.15)', sw: 'linear-gradient(135deg,#3a3a3a,#e5e0d4)' },
   { id: 'glow',  label: 'SOFT GLOW', css: 'brightness(1.12) saturate(.92) contrast(.94) blur(.3px)', sw: 'linear-gradient(135deg,#efe6da,#fffaf0)' },
   { id: 'house', label: 'HOUSE',     css: 'sepia(.3) hue-rotate(58deg) saturate(1.5) contrast(1.05)', sw: 'linear-gradient(135deg,#1f5236,#8fae95)' },
+  { id: 'smooth', label: 'SOFT SKIN', fn: fxSmooth, sw: 'linear-gradient(135deg,#f3d9c6,#fbeee4)' },
   { id: 'toon',  label: 'CARTOON',   fn: fxCartoon, sw: 'linear-gradient(135deg,#E8B84B 0 46%,#141414 46%)' },
 ];
 
@@ -788,6 +789,7 @@ const FACE = {
 
 let facePromise = null;
 let faceLandmarker = null;
+let FACE_SETS = null;   // landmark index rings, captured at load
 
 function warmFace() {
   if (facePromise) return facePromise;
@@ -802,6 +804,17 @@ function warmFace() {
       runningMode: 'IMAGE',
       numFaces: 1,
     });
+    const FL = vision.FaceLandmarker;
+    FACE_SETS = {
+      oval: FL.FACE_LANDMARKS_FACE_OVAL,
+      // Smoothing eyes, brows and lips is exactly what makes retouching look
+      // waxy, so they are cut back out of the mask.
+      exclude: [
+        FL.FACE_LANDMARKS_LEFT_EYE, FL.FACE_LANDMARKS_RIGHT_EYE,
+        FL.FACE_LANDMARKS_LEFT_EYEBROW, FL.FACE_LANDMARKS_RIGHT_EYEBROW,
+        FL.FACE_LANDMARKS_LIPS,
+      ],
+    };
     console.log('[face] ready in ' + Math.round(performance.now() - t0) + 'ms');
     return faceLandmarker;
   })().catch(err => { console.warn('[face] unavailable', err); return null; });
@@ -852,10 +865,14 @@ function drawFaceDebug(cv, src) {
 
      fn(src: HTMLCanvasElement) -> HTMLCanvasElement
 
-   Pure. It must not mutate `src`, read module state, or touch the DOM beyond
-   the canvas it allocates. Output is cached per (shot, filter) pair, so a
-   kernel runs once per selection and may be slow — but it runs synchronously
-   on the click, so keep it under a few hundred ms at the 640x640 capture size.
+   A kernel must not mutate `src` or touch the DOM beyond the canvas it
+   allocates. It MAY consult the face landmarker via faceLandmarksFor(), which
+   returns null when the model never loaded or no face was found — a kernel has
+   to treat that as an ordinary case and still return a usable image.
+
+   Output is cached per (shot, filter) pair, so a kernel runs once per selection
+   and may be slow — but it runs synchronously on the click, so keep it under a
+   few hundred ms at the 640x640 capture size.
 
    To add a filter: write one function here and append one row to FILTERS.
    Nothing in the render path below needs to change.
@@ -894,6 +911,117 @@ function fxBoxBlur(px, w, h, r) {
   const tmp = new Uint8ClampedArray(px.length);
   fxBoxPass(px, tmp, w, h, r, 4, w * 4);
   fxBoxPass(tmp, px, h, w, r, w * 4, 4);
+}
+
+// Convex hull (monotone chain). The face oval and each feature are near-convex
+// and the mask gets feathered anyway, so a hull beats walking the edge rings.
+function fxHull(pts) {
+  if (pts.length < 4) return pts.slice();
+  const sorted = pts.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const half = list => {
+    const out = [];
+    for (const pt of list) {
+      while (out.length >= 2 && cross(out[out.length - 2], out[out.length - 1], pt) <= 0) out.pop();
+      out.push(pt);
+    }
+    out.pop();
+    return out;
+  };
+  return half(sorted).concat(half(sorted.slice().reverse()));
+}
+
+// Push a hull out from (or into, for negative pad) its centroid.
+function fxExpand(hull, pad) {
+  if (!hull.length) return hull;
+  let cx = 0, cy = 0;
+  hull.forEach(pt => { cx += pt.x; cy += pt.y; });
+  cx /= hull.length; cy /= hull.length;
+  return hull.map(pt => {
+    const dx = pt.x - cx, dy = pt.y - cy;
+    const d = Math.hypot(dx, dy) || 1;
+    return { x: pt.x + dx / d * pad, y: pt.y + dy / d * pad };
+  });
+}
+
+// Feathered skin mask as one byte per pixel: 255 = smooth fully, 0 = leave alone.
+function faceMaskData(pts, w, h) {
+  if (!FACE_SETS) return null;
+  const ptsOf = conns => {
+    const seen = new Set(), out = [];
+    conns.forEach(c => [c.start, c.end].forEach(i => {
+      if (!seen.has(i) && pts[i]) { seen.add(i); out.push({ x: pts[i].x * w, y: pts[i].y * h }); }
+    }));
+    return out;
+  };
+
+  const m = fxCanvas(w, h);
+  const g = m.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, w, h);
+
+  const fill = (poly, colour) => {
+    if (poly.length < 3) return;
+    g.fillStyle = colour;
+    g.beginPath();
+    g.moveTo(poly[0].x, poly[0].y);
+    for (let i = 1; i < poly.length; i++) g.lineTo(poly[i].x, poly[i].y);
+    g.closePath();
+    g.fill();
+  };
+
+  // Pads are tuned at the 640px capture size and scale with the source.
+  const k = Math.min(w, h) / 640;
+  fill(fxExpand(fxHull(ptsOf(FACE_SETS.oval)), -6 * k), '#fff');
+  FACE_SETS.exclude.forEach(conns => fill(fxExpand(fxHull(ptsOf(conns)), 7 * k), '#000'));
+
+  const img = g.getImageData(0, 0, w, h);
+  fxBoxBlur(img.data, w, h, Math.max(2, Math.round(9 * k)));   // feather the edge
+  const out = new Uint8ClampedArray(w * h);
+  for (let i = 0, q = 0; q < out.length; q++, i += 4) out[q] = img.data[i];
+  return out;
+}
+
+const FX_SMOOTH_RADIUS = 4;      // blur radius at 640px
+const FX_SMOOTH_EDGE = 14;       // luma shift above which detail is protected
+const FX_SMOOTH_STRENGTH = .85;  // ceiling on the blend, so pores soften not vanish
+const FX_SMOOTH_FALLBACK = .4;   // strength applied when there are no landmarks
+
+// Edge-preserving smooth, confined to the skin by the landmark mask.
+function fxSmooth(src) {
+  const w = src.width, h = src.height;
+  const out = fxCanvas(w, h);
+  const g = out.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+
+  const img = g.getImageData(0, 0, w, h);
+  const px = img.data;
+  const orig = Uint8ClampedArray.from(px);
+
+  const k = Math.min(w, h) / 640;
+  fxBoxBlur(px, w, h, Math.max(1, Math.round(FX_SMOOTH_RADIUS * k)));
+
+  const pts = faceLandmarksFor(src);
+  const mask = pts ? faceMaskData(pts, w, h) : null;
+  const lum = (a, i) => a[i] * .299 + a[i + 1] * .587 + a[i + 2] * .114;
+
+  for (let q = 0, i = 0; i < px.length; q++, i += 4) {
+    // No landmarks: a gentler smooth over the whole frame still reads as the
+    // filter the guest picked, rather than silently doing nothing.
+    const a = mask ? mask[q] / 255 : FX_SMOOTH_FALLBACK;
+    if (a <= 0) { px[i] = orig[i]; px[i + 1] = orig[i + 1]; px[i + 2] = orig[i + 2]; continue; }
+    // Where the blur moved luminance a lot we were on a real edge — a lash, a
+    // nostril, the hairline — so hand the original detail back.
+    const d = Math.abs(lum(orig, i) - lum(px, i));
+    const keep = d > FX_SMOOTH_EDGE ? Math.min(1, (d - FX_SMOOTH_EDGE) / FX_SMOOTH_EDGE) : 0;
+    const t = a * (1 - keep) * FX_SMOOTH_STRENGTH;
+    px[i]     = orig[i]     + (px[i]     - orig[i])     * t;
+    px[i + 1] = orig[i + 1] + (px[i + 1] - orig[i + 1]) * t;
+    px[i + 2] = orig[i + 2] + (px[i + 2] - orig[i + 2]) * t;
+  }
+
+  g.putImageData(img, 0, 0);
+  return out;
 }
 
 // Flatten the colours into bands, then burn Sobel edges back in as ink lines.
