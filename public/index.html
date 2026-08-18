@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>즉석 사진관 · SE/O UL Photo Booth</title>
 <link rel="icon" type="image/png" href="/assets/logo-mark.png">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#123B26">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Emoji:wght@400;600&display=swap" rel="stylesheet">
@@ -789,6 +791,21 @@ function renderPicks() {
     list.appendChild(d);
   });
   $('btn-select-next').classList.toggle('ready', state.chosenIdx >= 0);
+}
+
+/* ---------- offline shell ---------- */
+
+// The booth is unattended, so nothing here is allowed to throw into the boot
+// path: a failed registration costs offline support, not the session.
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('/sw.js').then(() => {
+    // Cache Storage is evictable under disk pressure. An installed kiosk that
+    // silently loses 15MB of model months later is miserable to diagnose.
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().then(ok => console.log('[sw] persistent storage: ' + ok));
+    }
+  }).catch(err => console.warn('[sw] registration failed', err));
 }
 
 /* ---------- face landmarks -----------------------------------------------
@@ -1622,6 +1639,7 @@ updateShootTitles();
 fitStage();
 keepAwake();
 warmFace();
+registerServiceWorker();
 show('attract');
 </script>
 </body>
