@@ -1,0 +1,38 @@
+{
+  "$comment": "The style lock. Every generated sticker shares this verbatim — that is the whole point of the engine. Change it only when you intend to re-generate the ENTIRE set, and bump `version` when you do so stale art is detectable.",
+  "version": 1,
+
+  "medium": "flat vector sticker illustration, thick uniform outline, minimal interior detail",
+  "lineWeight": "bold even-weight contour line, roughly 6% of the icon's width, no line tapering",
+  "shading": "flat fills only, no gradients, no drop shadows, no ambient occlusion",
+  "composition": "single centered subject, filling 85% of a square frame, nothing cropped by the edge",
+  "background": "fully transparent background, no backdrop, no ground shadow, no frame, no border",
+  "readability": "must stay legible when scaled down to 44 pixels tall",
+  "text": "no text, no letters, no numbers, no logos, no watermark, no signature",
+
+  "palette": {
+    "$comment": "Mirrors the constants at the top of the kiosk script in public/index.html. Keep in sync.",
+    "green": "#123B26",
+    "cream": "#F7F1E3",
+    "teak": "#8A5A34",
+    "butter": "#E8B84B",
+    "red": "#D94F4F",
+    "pink": "#F2A8C0",
+    "blue": "#4FA3C4"
+  },
+  "paletteRule": "use ONLY these colors: deep forest green #123B26, warm cream #F7F1E3, teak brown #8A5A34, butter yellow #E8B84B, and at most one accent from soft red #D94F4F / dusty pink #F2A8C0 / sky blue #4FA3C4",
+
+  "mood": "warm, cozy, retro Korean cafe stationery; charming but restrained; hand-drawn warmth with geometric discipline",
+
+  "negative": [
+    "photorealism", "3D render", "glossy plastic", "gradients", "drop shadow",
+    "busy detail", "text", "watermark", "white background", "checkered background",
+    "multiple subjects", "cropped subject", "harsh neon colors", "anime shading"
+  ],
+
+  "output": {
+    "format": "PNG with alpha channel",
+    "size": "1024x1024",
+    "note": "Square with real transparency. If the source cannot emit alpha, generate on a solid #FF00FF magenta field so the key color can be removed cleanly."
+  }
+}
