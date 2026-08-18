@@ -7,27 +7,49 @@ them the digital file for 24 hours.
 ## Layout
 
 ```
-public/index.html   the kiosk itself — fixed 1280x800 stage, vanilla JS
-public/p.html       guest download page, served at /p/:id
-api/upload.ts       POST a composited JPEG, returns { id, shareUrl, qr }
-api/photo.ts        GET ?id= — resolves a short code to a blob URL
-api/cron/purge.ts   deletes blobs past the 24h TTL
+public/index.html      the kiosk itself — fixed 1280x800 stage, vanilla JS
+public/p.html          guest download page, served at /p/:id
+public/assets/         brand mark (alpha mask + square favicon)
+api/_db.ts             shared Supabase client, TTL and id format
+api/upload.ts          POST a composited JPEG, returns { id, shareUrl, qr }
+api/photo.ts           GET ?id= — resolves a short code to a blob URL
+api/cron/purge.ts      deletes expired blobs, keeps the rows
+supabase/migrations/   schema, applied with `supabase db push`
 ```
 
 The kiosk is deliberately dependency-free and unbundled. It is a fixed-size
 stage scaled with a CSS transform, so the whole layout is tuned once for 1280x800
 and every element sits at a known pixel position.
 
-## No database
+## Storage split
 
-The blob path *is* the short code: a photo lives at `photos/<CODE>.jpg`, and
-`/api/photo` resolves it with a prefix `list()`. Codes are 8 characters from a
-Crockford-style alphabet (no I/L/O/U), which is ~1.1 x 10^12 combinations —
-enough that guessing a stranger's photo inside its 24-hour life isn't practical.
+Bytes go to **Vercel Blob**; the record goes to **Supabase Postgres**. A photo
+lives at `photos/<CODE>.jpg` and has a matching row in `public.photos` keyed by
+the same code. Codes are 8 characters from a Crockford-style alphabet (no
+I/L/O/U) — ~1.1 x 10^12 combinations, enough that guessing a stranger's photo
+inside its 24-hour life isn't practical.
 
-The Blob store is **public**: anyone holding the URL can fetch the image, which
-is inherent to "scan this QR to download." Photos are not private data beyond
-the unguessable code plus the TTL.
+The row is the source of truth: `/api/photo` does an indexed primary-key lookup,
+and the row records which frame, filter and sticker count the guest chose, so
+you can see which looks actually get used. Rows outlive the images — the purge
+job stamps `purged_at` instead of deleting, keeping the stats.
+
+RLS is **on with no policies**, so the anon key cannot read the table at all.
+Every access goes through the serverless functions using `SUPABASE_SECRET_KEY`,
+which bypasses RLS. That key must never reach the kiosk.
+
+The Blob store itself is **public**: anyone holding the URL can fetch the image,
+which is inherent to "scan this QR to download." Photos are not private data
+beyond the unguessable code plus the TTL.
+
+## The brand mark
+
+`assets/logo-mask.png` is an alpha mask, not a picture — white letterforms on
+transparency, derived from the source artwork. It is applied with CSS
+`mask` plus `background-color: currentColor`, so the wordmark takes the colour of
+whatever it sits on: cream on the green chrome, green on cream. Using the source
+JPEG directly would paste its own `#084325` background over the kiosk's
+`#123B26` and show a visible square.
 
 ## The 24-hour promise
 

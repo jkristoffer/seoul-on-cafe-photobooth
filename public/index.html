@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>즉석 사진관 · SE/O UL Photo Booth</title>
+<link rel="icon" type="image/png" href="/assets/logo-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Noto+Emoji:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --green: #123B26;
@@ -55,12 +56,16 @@
     padding: 0 24px; background: var(--green); color: var(--cream);
   }
   #chrome.hidden { display: none; }
-  .logo-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
-    width: 38px; height: 38px;
-    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: .02em;
+  /* Brand mark. An alpha mask rather than an <img>, so the wordmark inherits
+     currentColor and reads correctly on both the green and cream grounds. */
+  .logo-mark {
+    -webkit-mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    background-color: currentColor;
+    flex: none;
   }
-  .logo-grid span { display: flex; align-items: center; justify-content: center; background: rgba(247,241,227,.12); }
+  .logo-mark.sm { width: 32px; height: 38px; }
+  .logo-mark.lg { width: 88px; height: 104px; }
   #steps { display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: .08em; }
   #steps .step { padding: 10px 12px; border: 1px solid rgba(247,241,227,.2); color: rgba(247,241,227,.6); }
   #steps .step.cur { border-color: transparent; background: var(--butter); color: var(--green); font-weight: 600; }
@@ -78,12 +83,6 @@
   }
   .ring { position: absolute; border: 1px solid rgba(247,241,227,.14); border-radius: 50%; }
   .attract-left { display: flex; flex-direction: column; gap: 26px; position: relative; }
-  .logo-grid-lg {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 5px;
-    width: 104px; height: 104px;
-    font-family: 'IBM Plex Mono', monospace; font-size: 20px; font-weight: 600;
-  }
-  .logo-grid-lg span { display: flex; align-items: center; justify-content: center; background: rgba(247,241,227,.1); }
   .attract-title { font-size: 72px; font-weight: 700; letter-spacing: -.03em; line-height: .98; font-family: 'IBM Plex Sans KR', sans-serif; }
   .attract-sub { font-size: 30px; font-weight: 500; letter-spacing: .16em; margin-top: 12px; opacity: .72; }
   .attract-info { font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .14em; opacity: .65; line-height: 2; }
@@ -263,7 +262,7 @@
   <!-- top chrome -->
   <div id="chrome" class="hidden">
     <div style="display:flex;align-items:center;gap:12px">
-      <div class="logo-grid"><span>SE</span><span>O</span><span>/</span><span>UL</span></div>
+      <div class="logo-mark sm" role="img" aria-label="SE/O UL"></div>
       <div style="font-size:13px;letter-spacing:.2em;font-weight:600">PHOTO BOOTH</div>
     </div>
     <div id="steps"></div>
@@ -275,7 +274,7 @@
     <div class="ring" style="right:-140px;top:-140px;width:520px;height:520px"></div>
     <div class="ring" style="right:-60px;bottom:-220px;width:420px;height:420px;border-color:rgba(247,241,227,.1)"></div>
     <div class="attract-left">
-      <div class="logo-grid-lg"><span>SE</span><span>O</span><span>/</span><span>UL</span></div>
+      <div class="logo-mark lg" role="img" aria-label="SE/O UL"></div>
       <div>
         <div class="attract-title">즉석 사진관</div>
         <div class="attract-sub">INSTANT FILM BOOTH</div>
@@ -424,6 +423,7 @@ const FILTERS = [
   { id: 'punch', label: 'CONTRAST',  css: 'contrast(1.35) saturate(1.15)', sw: 'linear-gradient(135deg,#3a3a3a,#e5e0d4)' },
   { id: 'glow',  label: 'SOFT GLOW', css: 'brightness(1.12) saturate(.92) contrast(.94) blur(.3px)', sw: 'linear-gradient(135deg,#efe6da,#fffaf0)' },
   { id: 'house', label: 'HOUSE',     css: 'sepia(.3) hue-rotate(58deg) saturate(1.5) contrast(1.05)', sw: 'linear-gradient(135deg,#1f5236,#8fae95)' },
+  { id: 'toon',  label: 'CARTOON',   fn: fxCartoon, sw: 'linear-gradient(135deg,#E8B84B 0 46%,#141414 46%)' },
 ];
 
 const FRAMES = [
@@ -447,6 +447,12 @@ const pill = (bg, fg, extra) => {
 const glyph = (fg, size) => ({
   css: { color: fg, fontSize: (size || 40) + 'px', lineHeight: 1, fontFamily: "'Archivo', sans-serif", textShadow: '0 2px 6px rgba(0,0,0,.18)' },
   draw: { kind: 'glyph', fg, fontSize: size || 40, font: '400 ' + (size || 40) + 'px Archivo, sans-serif', shadow: true },
+});
+/* Noto Emoji is a monochrome outline font, so it tints with `fg` and — unlike a
+   color emoji font — renders reliably through canvas fillText when we bake. */
+const emoji = (fg, size) => ({
+  css: { color: fg, fontSize: (size || 40) + 'px', lineHeight: 1, fontFamily: "'Noto Emoji', sans-serif", textShadow: '0 2px 6px rgba(0,0,0,.18)' },
+  draw: { kind: 'glyph', fg, fontSize: size || 40, font: '400 ' + (size || 40) + 'px "Noto Emoji", sans-serif', shadow: true },
 });
 const tape = (bg, fg) => ({
   css: { background: bg, color: fg, padding: '8px 20px', fontFamily: "'IBM Plex Mono', monospace", fontSize: '13px', letterSpacing: '.2em', fontWeight: 600, opacity: .92 },
@@ -493,6 +499,38 @@ const SETS = [
     { label: '////////', style: tape('#D94F4F', '#FFF8EE') },
     { label: 'REC ●', style: tape('rgba(20,20,20,.75)', '#FF5A5A') },
     { label: 'SEOUL 서울', style: tape(GREEN, CREAM) },
+  ] },
+  { id: 'emoji', label: '이모지 / ICONS', items: [
+    { label: '\u{2615}', style: emoji(TEAK, 44) },
+    { label: '\u{1F9CB}', style: emoji(TEAK, 42) },
+    { label: '\u{1F370}', style: emoji('#F2A8C0', 42) },
+    { label: '\u{1F35C}', style: emoji(TEAK, 42) },
+    { label: '\u{1F361}', style: emoji(GREEN, 42) },
+    { label: '\u{1F353}', style: emoji('#D94F4F', 40) },
+    { label: '\u{1F33F}', style: emoji(GREEN, 42) },
+    { label: '\u{1F338}', style: emoji('#F2A8C0', 44) },
+    { label: '\u{1F33B}', style: emoji(BUTTER, 44) },
+    { label: '\u{1F334}', style: emoji(GREEN, 44) },
+    { label: '\u{2600}', style: emoji(BUTTER, 44) },
+    { label: '\u{2601}', style: emoji('#4FA3C4', 42) },
+    { label: '\u{1F308}', style: emoji('#4FA3C4', 42) },
+    { label: '\u{2602}', style: emoji('#4FA3C4', 42) },
+    { label: '\u{1F31A}', style: emoji(BUTTER, 42) },
+    { label: '\u{2728}', style: emoji(BUTTER, 40) },
+    { label: '\u{1F4F7}', style: emoji(GREEN, 44) },
+    { label: '\u{1F39E}', style: emoji(GREEN, 42) },
+    { label: '\u{1F3AB}', style: emoji(TEAK, 42) },
+    { label: '\u{1F3B5}', style: emoji(GREEN, 42) },
+    { label: '\u{1F3A7}', style: emoji(GREEN, 42) },
+    { label: '\u{1F431}', style: emoji(TEAK, 44) },
+    { label: '\u{1F436}', style: emoji(TEAK, 44) },
+    { label: '\u{1F430}', style: emoji('#F2A8C0', 44) },
+    { label: '\u{1F43C}', style: emoji(GREEN, 44) },
+    { label: '\u{1F382}', style: emoji('#F2A8C0', 42) },
+    { label: '\u{1F381}', style: emoji('#D94F4F', 42) },
+    { label: '\u{1F389}', style: emoji(BUTTER, 42) },
+    { label: '\u{2764}', style: emoji('#D94F4F', 42) },
+    { label: '\u{1F44D}', style: emoji(BUTTER, 42) },
   ] },
   { id: 'season', label: 'SEASON', items: [
     { label: '여름 SUMMER', style: pill('#4FA3C4', '#FFF8EE') },
@@ -729,19 +767,147 @@ function renderPicks() {
   $('btn-select-next').classList.toggle('ready', state.chosenIdx >= 0);
 }
 
+/* ---------- filter kernels ------------------------------------------------
+
+   A filter entry in FILTERS carries EITHER a `css` string (a CSS filter chain,
+   handed to the browser) OR an `fn` pixel kernel. CSS filters cannot see
+   neighbouring pixels, so anything involving blur, edges or masks has to be a
+   kernel.
+
+   Kernel contract:
+
+     fn(src: HTMLCanvasElement) -> HTMLCanvasElement
+
+   Pure. It must not mutate `src`, read module state, or touch the DOM beyond
+   the canvas it allocates. Output is cached per (shot, filter) pair, so a
+   kernel runs once per selection and may be slow — but it runs synchronously
+   on the click, so keep it under a few hundred ms at the 640x640 capture size.
+
+   To add a filter: write one function here and append one row to FILTERS.
+   Nothing in the render path below needs to change.
+-------------------------------------------------------------------------- */
+
+function fxCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
+}
+
+function fxClamp(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+// One separable box pass: `runs` runs of `len` samples, `stride` bytes between
+// samples and `runStride` between runs. Reading src while writing dst, so the
+// two arrays must differ. Alpha is carried through untouched.
+function fxBoxPass(src, dst, len, runs, r, stride, runStride) {
+  const win = r * 2 + 1;
+  for (let run = 0; run < runs; run++) {
+    const base = run * runStride;
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let i = -r; i <= r; i++) sum += src[base + fxClamp(i, 0, len - 1) * stride + c];
+      for (let i = 0; i < len; i++) {
+        dst[base + i * stride + c] = sum / win;
+        sum += src[base + fxClamp(i + r + 1, 0, len - 1) * stride + c]
+             - src[base + fxClamp(i - r, 0, len - 1) * stride + c];
+      }
+    }
+    for (let i = 0; i < len; i++) dst[base + i * stride + 3] = src[base + i * stride + 3];
+  }
+}
+
+// Box blur over RGB, in place.
+function fxBoxBlur(px, w, h, r) {
+  const tmp = new Uint8ClampedArray(px.length);
+  fxBoxPass(px, tmp, w, h, r, 4, w * 4);
+  fxBoxPass(tmp, px, h, w, r, w * 4, 4);
+}
+
+// Flatten the colours into bands, then burn Sobel edges back in as ink lines.
+function fxCartoon(src) {
+  const w = src.width, h = src.height;
+  const out = fxCanvas(w, h);
+  const g = out.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+
+  const img = g.getImageData(0, 0, w, h);
+  const px = img.data;
+
+  // Luminance of the untouched frame. Edges are found here so that the
+  // flattening pass below can't erase the lines before we detect them.
+  const lum = new Uint8ClampedArray(w * h);
+  for (let i = 0, p = 0; i < px.length; i += 4, p++) {
+    lum[p] = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) | 0;
+  }
+
+  // Blur first: posterising raw sensor noise gives speckle, not flat ink.
+  fxBoxBlur(px, w, h, 2);
+  const step = 255 / (FX_TOON_LEVELS - 1);
+  for (let i = 0; i < px.length; i += 4) {
+    px[i]     = Math.round(px[i]     / step) * step;
+    px[i + 1] = Math.round(px[i + 1] / step) * step;
+    px[i + 2] = Math.round(px[i + 2] / step) * step;
+  }
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const p = y * w + x;
+      const tl = lum[p - w - 1], t = lum[p - w], tr = lum[p - w + 1];
+      const l  = lum[p - 1],                     r  = lum[p + 1];
+      const bl = lum[p + w - 1], b = lum[p + w], br = lum[p + w + 1];
+      const gx = (tr + 2 * r + br) - (tl + 2 * l + bl);
+      const gy = (bl + 2 * b + br) - (tl + 2 * t + tr);
+      const mag = Math.abs(gx) + Math.abs(gy);
+      if (mag <= FX_TOON_EDGE) continue;
+      // Feather rather than hard-threshold, or the lines alias badly at 3x.
+      const k = Math.min(1, (mag - FX_TOON_EDGE) / 160);
+      const i = p * 4;
+      px[i]     *= 1 - k;
+      px[i + 1] *= 1 - k;
+      px[i + 2] *= 1 - k;
+    }
+  }
+
+  g.putImageData(img, 0, 0);
+  return out;
+}
+
+const FX_TOON_LEVELS = 6;   // colour bands per channel
+const FX_TOON_EDGE = 48;    // Sobel magnitude below which nothing is inked
+
 /* ---------- polaroid rendering (filter / decorate / print) ---------- */
 
 function frameDef() { return FRAMES.find(f => f.id === state.frame) || FRAMES[0]; }
-function filterCss() { const f = FILTERS.find(x => x.id === state.filter); return f ? f.css : 'none'; }
+function filterDef() { return FILTERS.find(x => x.id === state.filter) || FILTERS[0]; }
+
+// Kernels bake their result into the pixels, so the CSS/canvas filter must be
+// off for them or the grade would be applied twice.
+function filterCss() { const f = filterDef(); return f.fn ? 'none' : (f.css || 'none'); }
+
+// Keyed off the shot canvas itself: a new session allocates new canvases, so
+// stale entries fall out with no reset plumbing.
+const fxCache = new WeakMap();
+
+// The shot as the polaroid should show it — kernel applied, CSS grades left
+// for filterCss() to handle downstream.
+function filteredShot() {
+  const src = shots[state.chosenIdx];
+  if (!src) return null;
+  const f = filterDef();
+  if (!f.fn) return src;
+  let byId = fxCache.get(src);
+  if (!byId) { byId = new Map(); fxCache.set(src, byId); }
+  if (!byId.has(f.id)) byId.set(f.id, f.fn(src));
+  return byId.get(f.id);
+}
 
 function renderPolaroids() {
   const f = frameDef();
+  const src = filteredShot();
   ['pol-filter', 'pol-decorate', 'pol-print'].forEach(id => {
     const pol = $(id);
     pol.style.background = f.bg;
     pol.style.color = f.ink;
     const cv = pol.querySelector('canvas');
-    const src = shots[state.chosenIdx];
     if (src) {
       if (cv.width !== src.width) { cv.width = src.width; cv.height = src.height; }
       cv.getContext('2d').drawImage(src, 0, 0);
@@ -919,7 +1085,7 @@ async function composite() {
   g.fillStyle = f.bg;
   g.fillRect(0, 0, W, H);
 
-  const src = shots[state.chosenIdx];
+  const src = filteredShot();
   if (src) {
     g.save();
     g.filter = filterCss();
@@ -982,7 +1148,13 @@ async function uploadPhoto() {
   const res = await fetch('/api/upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ image: dataUrl }),
+    body: JSON.stringify({
+      image: dataUrl,
+      // Recorded alongside the photo so we can see which looks actually get used.
+      frame: state.frame,
+      filter: state.filter,
+      stickerCount: state.stickers.length,
+    }),
   });
   if (!res.ok) throw new Error('upload failed: ' + res.status);
   return res.json();

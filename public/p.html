@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>사진 받기 · SE/O UL Photo Booth</title>
+<link rel="icon" type="image/png" href="/assets/logo-mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -18,9 +19,12 @@
   }
   .mono { font-family: 'IBM Plex Mono', monospace; }
   header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
-  .logo { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 38px; height: 38px;
-          font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; }
-  .logo span { display: flex; align-items: center; justify-content: center; background: rgba(247,241,227,.12); }
+  .logo {
+    width: 32px; height: 38px; flex: none;
+    -webkit-mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    background-color: currentColor;
+  }
   .wordmark { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .2em; font-weight: 600; }
   main { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 22px; }
   #photo { width: 100%; display: none; box-shadow: 0 24px 48px rgba(0,0,0,.4); }
@@ -43,7 +47,7 @@
 <body>
 
 <header>
-  <div class="logo"><span>SE</span><span>O</span><span>/</span><span>UL</span></div>
+  <div class="logo" role="img" aria-label="SE/O UL"></div>
   <div class="wordmark">PHOTO BOOTH</div>
 </header>
 
