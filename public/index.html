@@ -425,6 +425,11 @@ const FILTERS = [
   { id: 'punch', label: 'CONTRAST',  css: 'contrast(1.35) saturate(1.15)', sw: 'linear-gradient(135deg,#3a3a3a,#e5e0d4)' },
   { id: 'glow',  label: 'SOFT GLOW', css: 'brightness(1.12) saturate(.92) contrast(.94) blur(.3px)', sw: 'linear-gradient(135deg,#efe6da,#fffaf0)' },
   { id: 'house', label: 'HOUSE',     css: 'sepia(.3) hue-rotate(58deg) saturate(1.5) contrast(1.05)', sw: 'linear-gradient(135deg,#1f5236,#8fae95)' },
+  { id: 'portrait', label: 'PORTRAIT', fn: fxPortrait, sw: 'radial-gradient(circle at 50% 42%,#efe6da 0 34%,#9fb0a4 72%)' },
+  { id: 'glam',   label: 'GLAM',      fn: fxGlam,   sw: 'linear-gradient(135deg,#fbe9ec,#f6d9c2)' },
+  { id: 'half',   label: 'NEWSPRINT', fn: fxHalftone, sw: 'radial-gradient(#141414 34%,#FFFDF8 36%) 0 0/7px 7px' },
+  { id: 'duo',    label: 'DUOTONE',   fn: fxDuotone, sw: 'linear-gradient(135deg,#123B26,#F7F1E3)' },
+  { id: 'riso',   label: 'RISO',      fn: fxRiso,   sw: 'linear-gradient(90deg,#ff2d55,#00e0d0)' },
   { id: 'smooth', label: 'SOFT SKIN', fn: fxSmooth, sw: 'linear-gradient(135deg,#f3d9c6,#fbeee4)' },
   { id: 'toon',  label: 'CARTOON',   fn: fxCartoon, sw: 'linear-gradient(135deg,#E8B84B 0 46%,#141414 46%)' },
 ];
@@ -878,6 +883,8 @@ function warmFace() {
     const FL = vision.FaceLandmarker;
     FACE_SETS = {
       oval: FL.FACE_LANDMARKS_FACE_OVAL,
+      lips: FL.FACE_LANDMARKS_LIPS,
+      eyes: [FL.FACE_LANDMARKS_LEFT_EYE, FL.FACE_LANDMARKS_RIGHT_EYE],
       // Smoothing eyes, brows and lips is exactly what makes retouching look
       // waxy, so they are cut back out of the mask.
       exclude: [
@@ -1039,42 +1046,59 @@ function fxExpand(hull, pad) {
   });
 }
 
+// Landmark indices of a connection set, in source pixels.
+function fxConnPoints(pts, conns, w, h) {
+  const seen = new Set(), out = [];
+  conns.forEach(c => [c.start, c.end].forEach(i => {
+    if (!seen.has(i) && pts[i]) { seen.add(i); out.push({ x: pts[i].x * w, y: pts[i].y * h }); }
+  }));
+  return out;
+}
+
+function fxFillPoly(g, poly, colour) {
+  if (poly.length < 3) return;
+  g.fillStyle = colour;
+  g.beginPath();
+  g.moveTo(poly[0].x, poly[0].y);
+  for (let i = 1; i < poly.length; i++) g.lineTo(poly[i].x, poly[i].y);
+  g.closePath();
+  g.fill();
+}
+
+// Read a rasterised mask canvas back as one byte per pixel.
+function fxMaskBytes(g, w, h, feather) {
+  const img = g.getImageData(0, 0, w, h);
+  if (feather > 0) fxBoxBlur(img.data, w, h, feather);
+  const out = new Uint8ClampedArray(w * h);
+  for (let i = 0, q = 0; q < out.length; q++, i += 4) out[q] = img.data[i];
+  return out;
+}
+
+// One feathered region from a single connection set.
+function faceHullMask(pts, w, h, conns, pad, feather) {
+  const m = fxCanvas(w, h);
+  const g = m.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, w, h);
+  fxFillPoly(g, fxExpand(fxHull(fxConnPoints(pts, conns, w, h)), pad), '#fff');
+  return fxMaskBytes(g, w, h, feather);
+}
+
 // Feathered skin mask as one byte per pixel: 255 = smooth fully, 0 = leave alone.
 function faceMaskData(pts, w, h) {
   if (!FACE_SETS) return null;
-  const ptsOf = conns => {
-    const seen = new Set(), out = [];
-    conns.forEach(c => [c.start, c.end].forEach(i => {
-      if (!seen.has(i) && pts[i]) { seen.add(i); out.push({ x: pts[i].x * w, y: pts[i].y * h }); }
-    }));
-    return out;
-  };
-
   const m = fxCanvas(w, h);
   const g = m.getContext('2d', { willReadFrequently: true });
   g.fillStyle = '#000';
   g.fillRect(0, 0, w, h);
 
-  const fill = (poly, colour) => {
-    if (poly.length < 3) return;
-    g.fillStyle = colour;
-    g.beginPath();
-    g.moveTo(poly[0].x, poly[0].y);
-    for (let i = 1; i < poly.length; i++) g.lineTo(poly[i].x, poly[i].y);
-    g.closePath();
-    g.fill();
-  };
-
   // Pads are tuned at the 640px capture size and scale with the source.
   const k = Math.min(w, h) / 640;
-  fill(fxExpand(fxHull(ptsOf(FACE_SETS.oval)), -6 * k), '#fff');
-  FACE_SETS.exclude.forEach(conns => fill(fxExpand(fxHull(ptsOf(conns)), 7 * k), '#000'));
+  fxFillPoly(g, fxExpand(fxHull(fxConnPoints(pts, FACE_SETS.oval, w, h)), -6 * k), '#fff');
+  FACE_SETS.exclude.forEach(conns =>
+    fxFillPoly(g, fxExpand(fxHull(fxConnPoints(pts, conns, w, h)), 7 * k), '#000'));
 
-  const img = g.getImageData(0, 0, w, h);
-  fxBoxBlur(img.data, w, h, Math.max(2, Math.round(9 * k)));   // feather the edge
-  const out = new Uint8ClampedArray(w * h);
-  for (let i = 0, q = 0; q < out.length; q++, i += 4) out[q] = img.data[i];
-  return out;
+  return fxMaskBytes(g, w, h, Math.max(2, Math.round(9 * k)));
 }
 
 const FX_SMOOTH_RADIUS = 8;      // blur radius at 640px
@@ -1113,6 +1137,199 @@ function fxSmooth(src) {
     px[i]     = orig[i]     + (px[i]     - orig[i])     * t;
     px[i + 1] = orig[i + 1] + (px[i + 1] - orig[i + 1]) * t;
     px[i + 2] = orig[i + 2] + (px[i + 2] - orig[i + 2]) * t;
+  }
+
+  g.putImageData(img, 0, 0);
+  return out;
+}
+
+const FX_PORTRAIT_BLUR = 9;      // background blur radius at 640px
+const FX_PORTRAIT_PAD = 46;      // hull grows this far past the jaw, for hair
+const FX_PORTRAIT_FEATHER = 16;
+
+// Blur everything except the guest. Reuses the step-3 landmark hull, but
+// WITHOUT the eye/brow/lip cut-outs — those must stay sharp here, not blurred.
+function fxPortrait(src) {
+  const w = src.width, h = src.height;
+  const out = fxCanvas(w, h);
+  const g = out.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+
+  const img = g.getImageData(0, 0, w, h);
+  const px = img.data;
+  const orig = Uint8ClampedArray.from(px);
+  const k = Math.min(w, h) / 640;
+
+  const pts = faceLandmarksFor(src);
+  const mask = (pts && FACE_SETS)
+    ? faceHullMask(pts, w, h, FACE_SETS.oval, FX_PORTRAIT_PAD * k, Math.round(FX_PORTRAIT_FEATHER * k))
+    : null;
+
+  fxBoxBlur(px, w, h, Math.max(2, Math.round(FX_PORTRAIT_BLUR * k)));
+
+  // No face: fall back to a centred radial hold, which is where a guest stands
+  // anyway. Blurring the whole frame would just look like a broken photo.
+  const cx = w / 2, cy = h * .45, r0 = Math.min(w, h) * .34, r1 = Math.min(w, h) * .62;
+
+  for (let q = 0, i = 0; i < px.length; q++, i += 4) {
+    let a;
+    if (mask) a = mask[q] / 255;
+    else {
+      const dx = (q % w) - cx, dy = ((q / w) | 0) - cy;
+      const d = Math.hypot(dx, dy);
+      a = d <= r0 ? 1 : d >= r1 ? 0 : 1 - (d - r0) / (r1 - r0);
+    }
+    if (a >= 1) { px[i] = orig[i]; px[i + 1] = orig[i + 1]; px[i + 2] = orig[i + 2]; continue; }
+    if (a <= 0) continue;
+    px[i]     += (orig[i]     - px[i])     * a;
+    px[i + 1] += (orig[i + 1] - px[i + 1]) * a;
+    px[i + 2] += (orig[i + 2] - px[i + 2]) * a;
+  }
+
+  g.putImageData(img, 0, 0);
+  return out;
+}
+
+const FX_HALFTONE_CELL = 6;      // dot pitch at 640px
+
+// Luminance as a rotated dot screen, drawn as real circles so it stays crisp
+// when composite() scales the polaroid up 3x.
+function fxHalftone(src) {
+  const w = src.width, h = src.height;
+  const k = Math.min(w, h) / 640;
+  const cell = Math.max(3, FX_HALFTONE_CELL * k);
+
+  const tmp = fxCanvas(w, h);
+  const tg = tmp.getContext('2d', { willReadFrequently: true });
+  tg.drawImage(src, 0, 0);
+  const sample = tg.getImageData(0, 0, w, h).data;
+  // Pre-blur so one sample per dot stands in for the cell average.
+  fxBoxBlur(sample, w, h, Math.max(1, Math.round(cell / 2)));
+
+  const out = fxCanvas(w, h);
+  const g = out.getContext('2d');
+  g.fillStyle = '#FFFDF8';
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = '#141414';
+
+  const ang = Math.PI / 12;                       // 15 degree screen angle
+  const cos = Math.cos(ang), sin = Math.sin(ang);
+  const reach = Math.ceil(Math.hypot(w, h) / cell) + 2;
+
+  for (let j = -reach; j <= reach; j++) {
+    for (let i = -reach; i <= reach; i++) {
+      const x = (i * cos - j * sin) * cell + w / 2;
+      const y = (i * sin + j * cos) * cell + h / 2;
+      if (x < -cell || y < -cell || x > w + cell || y > h + cell) continue;
+      const sx = fxClamp(Math.round(x), 0, w - 1), sy = fxClamp(Math.round(y), 0, h - 1);
+      const p = (sy * w + sx) * 4;
+      const lum = (sample[p] * .299 + sample[p + 1] * .587 + sample[p + 2] * .114) / 255;
+      const r = (1 - lum) * cell * .78;
+      if (r < .25) continue;
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  return out;
+}
+
+const FX_DUO_CONTRAST = 1.25;
+const FX_DUO_DARK = [0x12, 0x3B, 0x26];   // GREEN
+const FX_DUO_LIGHT = [0xF7, 0xF1, 0xE3];  // CREAM
+
+// Luminance mapped onto the house palette.
+function fxDuotone(src) {
+  const w = src.width, h = src.height;
+  const out = fxCanvas(w, h);
+  const g = out.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+  const img = g.getImageData(0, 0, w, h);
+  const px = img.data;
+  for (let i = 0; i < px.length; i += 4) {
+    const t = fxClamp(((px[i] * .299 + px[i + 1] * .587 + px[i + 2] * .114) / 255 - .5) * FX_DUO_CONTRAST + .5, 0, 1);
+    px[i]     = FX_DUO_DARK[0] + (FX_DUO_LIGHT[0] - FX_DUO_DARK[0]) * t;
+    px[i + 1] = FX_DUO_DARK[1] + (FX_DUO_LIGHT[1] - FX_DUO_DARK[1]) * t;
+    px[i + 2] = FX_DUO_DARK[2] + (FX_DUO_LIGHT[2] - FX_DUO_DARK[2]) * t;
+  }
+  g.putImageData(img, 0, 0);
+  return out;
+}
+
+const FX_RISO_SHIFT = 4;     // channel offset in px at 640
+const FX_RISO_SCAN = .86;    // scanline darkening
+
+// Misregistered colour channels plus scanlines.
+function fxRiso(src) {
+  const w = src.width, h = src.height;
+  const out = fxCanvas(w, h);
+  const g = out.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+  const img = g.getImageData(0, 0, w, h);
+  const px = img.data;
+  const orig = Uint8ClampedArray.from(px);
+  const d = Math.max(1, Math.round(FX_RISO_SHIFT * Math.min(w, h) / 640));
+
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      const i = (row + x) * 4;
+      px[i]     = orig[(row + Math.min(w - 1, x + d)) * 4];
+      px[i + 2] = orig[(row + Math.max(0, x - d)) * 4 + 2];
+    }
+  }
+  for (let y = 0; y < h; y += 2) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      px[i] *= FX_RISO_SCAN; px[i + 1] *= FX_RISO_SCAN; px[i + 2] *= FX_RISO_SCAN;
+    }
+  }
+  g.putImageData(img, 0, 0);
+  return out;
+}
+
+const FX_GLAM_TEETH = .55;   // how far yellow is pulled out of the teeth
+const FX_GLAM_EYE = .3;      // sclera lift
+
+// Teeth whitening and eye brightening, driven by the landmark regions and kept
+// deliberately gentle — this is the effect that goes uncanny fastest.
+function fxGlam(src) {
+  const w = src.width, h = src.height;
+  const out = fxCanvas(w, h);
+  const g = out.getContext('2d', { willReadFrequently: true });
+  g.drawImage(src, 0, 0);
+
+  const pts = faceLandmarksFor(src);
+  if (!pts || !FACE_SETS) return out;   // no face: hand the frame back untouched
+
+  const k = Math.min(w, h) / 640;
+  const img = g.getImageData(0, 0, w, h);
+  const px = img.data;
+  const teeth = faceHullMask(pts, w, h, FACE_SETS.lips, -2 * k, Math.max(1, Math.round(3 * k)));
+  const eyes = FACE_SETS.eyes.map(c => faceHullMask(pts, w, h, c, 1 * k, Math.max(1, Math.round(2 * k))));
+
+  for (let q = 0, i = 0; i < px.length; q++, i += 4) {
+    const r = px[i], gr = px[i + 1], b = px[i + 2];
+    const mx = Math.max(r, gr, b), mn = Math.min(r, gr, b);
+    const sat = mx ? (mx - mn) / mx : 0;
+    const lum = r * .299 + gr * .587 + b * .114;
+
+    // Inside the lips, the bright low-saturation pixels are teeth; the lips
+    // themselves are saturated and stay exactly as they are.
+    if (teeth[q] > 8 && lum > 92 && sat < .45) {
+      const a = teeth[q] / 255 * FX_GLAM_TEETH;
+      px[i + 2] += (mx - b) * a;
+      px[i + 1] += (mx - gr) * a * .5;
+    }
+
+    let eyeA = 0;
+    for (const m of eyes) eyeA = Math.max(eyeA, m[q] / 255);
+    if (eyeA > 0 && sat < .4 && lum > 70) {          // sclera only, not the iris
+      const a = eyeA * FX_GLAM_EYE;
+      px[i]     += (255 - px[i])     * a * .35;
+      px[i + 1] += (255 - px[i + 1]) * a * .35;
+      px[i + 2] += (255 - px[i + 2]) * a * .35;
+    }
   }
 
   g.putImageData(img, 0, 0);
