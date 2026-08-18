@@ -1049,7 +1049,7 @@ function faceMaskData(pts, w, h) {
   return out;
 }
 
-const FX_SMOOTH_RADIUS = 4;      // blur radius at 640px
+const FX_SMOOTH_RADIUS = 8;      // blur radius at 640px
 const FX_SMOOTH_EDGE = 14;       // luma shift above which detail is protected
 const FX_SMOOTH_STRENGTH = .85;  // ceiling on the blend, so pores soften not vanish
 const FX_SMOOTH_FALLBACK = .4;   // strength applied when there are no landmarks
@@ -1235,7 +1235,12 @@ function renderPalette() {
     applyStyle(d, it.style.css);
     // Badges are placed far larger than they can be shown in the tray, so the
     // swatch is capped. Only the preview shrinks — the placed sticker keeps its size.
-    if (isImage) { d.style.width = PALETTE_THUMB + 'px'; d.style.height = PALETTE_THUMB + 'px'; }
+    if (isImage) {
+      d.style.width = PALETTE_THUMB + 'px'; d.style.height = PALETTE_THUMB + 'px';
+      // A set is often only partly generated. Rather than offering a swatch that
+      // would place an invisible sticker, drop items whose art has not landed yet.
+      stickerImage(it.style.draw.src).ready.then(im => { if (!im) d.remove(); });
+    }
     d.addEventListener('click', () => addSticker(it));
     pal.appendChild(d);
   });
