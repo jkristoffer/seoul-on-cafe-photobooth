@@ -373,6 +373,35 @@
   #qr-pending { display: none; }
   #qr-pending .spin { width: 20px; height: 20px; border: 2px solid rgba(18,59,38,.25); border-top-color: var(--green); border-radius: 50%; animation: spinslow .9s linear infinite; }
   #qr-card .txt { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .1em; line-height: 2; opacity: .8; }
+
+  /* Guest book consent. Asked here rather than on a screen of its own, because
+     the guest is already standing still for the two minutes the polaroid takes
+     to develop — and a question that appears after they have picked up the
+     print is a question nobody answers. The card only appears once the upload
+     resolves: until the photo has a code there is nothing to consent to, and
+     nothing that could later be taken back down. */
+  #gb-card { display: none; flex-direction: column; gap: 13px; background: rgba(247,241,227,.07); padding: 18px; }
+  #gb-card.on { display: flex; }
+  #gb-ask { font-size: 17px; font-weight: 600; line-height: 1.35; }
+  #gb-sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .1em; line-height: 1.9; opacity: .55; }
+  #gb-choice { display: none; gap: 10px; }
+  #gb-choice.on { display: flex; }
+  #gb-choice button {
+    /* Transparent rather than none: an id-plus-type selector outranks the plain
+       ids below it, so a `border: 0` here would win over the decline key's
+       outline and leave the two answers in differently sized boxes. */
+    flex: 1; padding: 15px 0; border: 1px solid transparent; cursor: pointer;
+    font-family: inherit; font-size: 15px; font-weight: 600;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  /* Cream rather than butter: yes is the answer we are asking for, but it must
+     not outshout DONE, which is the only control that ends the session. */
+  /* Scoped under #gb-choice so these outrank the shared button rule above; a
+     bare #gb-no loses to it on specificity and the key renders with no box. */
+  #gb-choice #gb-yes { background: var(--cream); color: var(--green); }
+  #gb-choice #gb-no { background: transparent; color: rgba(247,241,227,.55); border-color: rgba(247,241,227,.2); }
+  #gb-choice #gb-no:hover { color: var(--cream); }
+  #gb-choice button:focus-visible { outline: 2px solid var(--butter); outline-offset: 3px; }
   #btn-done { background: var(--butter); color: var(--green); padding: 24px 0; text-align: center; font-size: 20px; font-weight: 700; cursor: pointer; }
   #btn-done:hover { background: #f0c65f; }
   #print-spinner { display: none; align-items: center; gap: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .16em; opacity: .75; }
@@ -554,6 +583,16 @@
           </div>
           <div class="txt" id="qr-text">디지털 파일 받기<br>SCAN TO DOWNLOAD<br>EXPIRES IN 24H</div>
         </div>
+        <!-- Painted by renderGuestbook(); no data-i18n, because the copy here
+             depends on what the guest has answered, not only on the language. -->
+        <div id="gb-card">
+          <div id="gb-ask"></div>
+          <div id="gb-sub"></div>
+          <div id="gb-choice">
+            <button id="gb-yes" type="button"></button>
+            <button id="gb-no" type="button"></button>
+          </div>
+        </div>
         <div id="btn-done" data-i18n="done">완료 · DONE</div>
       </div>
       <div id="print-spinner"><div class="spin"></div>PRINTING…</div>
@@ -637,6 +676,12 @@ const STRINGS = {
     qrReady:     '\uB514\uC9C0\uD138 \uD30C\uC77C \uBC1B\uAE30',
     qrPending:   '\uB514\uC9C0\uD138 \uD30C\uC77C \uC900\uBE44 \uC911',
     qrFailed:    '\uB514\uC9C0\uD138 \uD30C\uC77C\uC744 \uB9CC\uB4E4\uC9C0 \uBABB\uD588\uC5B4\uC694',
+    gbAsk:       '\uC774 \uC0AC\uC9C4\uC744 \uBC29\uBA85\uB85D\uC5D0 \uB0A8\uACA8\uB3C4 \uB420\uAE4C\uC694?',
+    gbYes:       '\uB124, \uC88B\uC544\uC694 \u00B7 YES',
+    gbNo:        '\uC544\uB2C8\uC694 \u00B7 NO THANKS',
+    gbThanks:    '\uBC29\uBA85\uB85D\uC5D0 \uC62C\uB838\uC5B4\uC694!',
+    gbPrivate:   '\uBE44\uACF5\uAC1C\uB85C \uB458\uAC8C\uC694',
+    gbFailed:    '\uBC29\uBA85\uB85D\uC5D0 \uC62C\uB9AC\uC9C0 \uBABB\uD588\uC5B4\uC694',
     sets: {},   // the ko labels live on SETS itself
   },
   ms: {
@@ -669,6 +714,12 @@ const STRINGS = {
     qrReady:     'DAPATKAN FAIL DIGITAL',
     qrPending:   'MENYEDIAKAN FAIL DIGITAL',
     qrFailed:    'FAIL DIGITAL TIDAK BERJAYA',
+    gbAsk:       'SIMPAN GAMBAR INI DI DINDING KAMI?',
+    gbYes:       'YA, BOLEH · YES',
+    gbNo:        'TAK PERLU · NO',
+    gbThanks:    'SUDAH DI DINDING KAMI!',
+    gbPrivate:   'KAMI SIMPAN PERIBADI',
+    gbFailed:    'TIDAK DAPAT DISIMPAN',
     sets: { ko: 'KOREA / KOREAN', mascot: 'MASKOT / MASCOT', menu: 'MENU',
             place: 'KUCHING', badge: 'LENCANA / BADGE', emoji: 'IKON / ICONS' },
   },
@@ -697,6 +748,7 @@ function applyLang(lang) {
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   updateShootTitles();
   renderProgress();   // half the step readout is translated, half stays mono English
+  renderGuestbook();  // the consent card, if a guest changed language mid-print
   renderTabs();   // the palette itself is language-free, only the tabs above it
   renderMute();   // its label is one of two strings, picked by state, not markup
 }
@@ -1121,6 +1173,10 @@ const state = {
   seq: 0,
   printing: false,
   lang: CONFIG.voice,   // which welcome plays; chosen on the attract screen
+  // Guest book consent, asked on the print screen once the upload has a code.
+  // null until there is something to ask about; then 'ask' through to an answer.
+  gb: null,             // null | 'ask' | 'saving' | 'yes' | 'no' | 'failed'
+  gbId: null,           // the code the answer applies to
 };
 
 let shots = [];        // captured 640x640 canvases
@@ -2332,6 +2388,63 @@ function setQrState(mode, code) {
   }
 }
 
+/* ---------- guest book consent ---------- */
+
+// The mono line under the question. English only and fixed per state, matching
+// every other second line in the booth: it is the line a guest who reads neither
+// Korean nor Malay can still work from.
+const GB_SUB = {
+  ask:    'GUEST BOOK · YOU CAN TAKE IT DOWN ANY TIME',
+  saving: 'SAVING…',
+  yes:    'SCAN THE QR TO ADD A MESSAGE',
+  no:     'THIS PHOTO STAYS PRIVATE · 24 HOURS',
+  failed: 'YOUR POLAROID AND QR CODE ARE UNAFFECTED',
+};
+
+// Painted from state rather than mutated in place, so applyLang() can repaint an
+// already-answered card and the answer survives the language swap.
+function renderGuestbook() {
+  const gb = state.gb;
+  $('gb-card').classList.toggle('on', gb !== null);
+  if (gb === null) return;
+  const key = gb === 'yes' ? 'gbThanks' : gb === 'no' ? 'gbPrivate' : gb === 'failed' ? 'gbFailed' : 'gbAsk';
+  $('gb-ask').textContent = t(key);
+  $('gb-sub').textContent = GB_SUB[gb];
+  // Only the question offers a choice; every other state is the card reporting
+  // back, and a second tap must not be able to flip an answer already sent.
+  $('gb-choice').classList.toggle('on', gb === 'ask');
+  $('gb-yes').textContent = t('gbYes');
+  $('gb-no').textContent = t('gbNo');
+}
+
+async function answerGuestbook(consent) {
+  if (state.gb !== 'ask' || !state.gbId) return;
+  const id = state.gbId;
+  play(consent ? 'confirm' : 'tap');
+  // A declined photo needs no request at all: private is what the row already
+  // says, and the booth should not depend on the network to keep a promise it
+  // has already kept.
+  if (!consent) { state.gb = 'no'; renderGuestbook(); return; }
+
+  state.gb = 'saving';
+  renderGuestbook();
+  try {
+    const res = await fetch('/api/entry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, consent: true }),
+    });
+    if (!res.ok) throw new Error('consent failed: ' + res.status);
+    if (state.gbId === id) state.gb = 'yes';
+  } catch (err) {
+    console.error(err);
+    // Failing closed is the only safe direction: nothing is published, and the
+    // guest is told so rather than left believing their photo is on the wall.
+    if (state.gbId === id) state.gb = 'failed';
+  }
+  renderGuestbook();
+}
+
 async function uploadPhoto() {
   const canvas = await composite();
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
@@ -2365,6 +2478,8 @@ async function startPrint() {
   $('print-title-lead').textContent = t('printBusy');
   $('print-title-sub').textContent = 'DO NOT PULL THE FILM · 15 SECONDS';
   setQrState(CONFIG.showQr ? 'pending' : 'off');
+  state.gb = null; state.gbId = null;   // nothing to consent to until there is a code
+  renderGuestbook();
   play('eject');   // 3.16 s, trimmed to land on the eject animation below
 
   // The ceremony and the upload run together: the polaroid always ejects on
@@ -2385,6 +2500,10 @@ async function startPrint() {
   if (result) {
     $('qr-img').src = result.qr;
     setQrState('ready', result.id);
+    // The consent question rides on the same resolution as the QR: both need a
+    // code, and a failed upload leaves nothing that could be published.
+    state.gbId = result.id; state.gb = 'ask';
+    renderGuestbook();
     // The upload usually resolves while `done` is still speaking, so this one
     // queues behind it. A failed upload gets silence: the card explains itself,
     // and an apology is not the last thing a guest should hear.
@@ -2424,8 +2543,9 @@ function reset() {
   timers.forEach(clearTimeout); timers.length = 0;
   stopVoice();
   shots = [];
-  Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [], printing: false, lang: CONFIG.voice });
+  Object.assign(state, { frame: 'white', filter: 'none', chosenIdx: -1, setIdx: 0, stickers: [], printing: false, lang: CONFIG.voice, gb: null, gbId: null });
   $('qr-img').removeAttribute('src');
+  renderGuestbook();
   setCount(null);
   renderFrames();
   renderSlots();
@@ -2520,6 +2640,8 @@ $('btn-back-filter').addEventListener('click', () => { play('back'); show('filte
 $('btn-undo').addEventListener('click', () => { play('back'); state.stickers.pop(); renderStickers(); });
 $('btn-clear').addEventListener('click', () => { play('back'); state.stickers = []; renderStickers(); });
 $('btn-print').addEventListener('click', () => { play('confirm'); startPrint(); });
+$('gb-yes').addEventListener('click', () => answerGuestbook(true));
+$('gb-no').addEventListener('click', () => answerGuestbook(false));
 $('btn-done').addEventListener('click', () => { play('confirm'); reset(); });
 
 // Built at load, not at first touch: the context starts suspended (which the
