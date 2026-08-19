@@ -11,7 +11,7 @@
    Bump HEAVY_CACHE only when the files under /vendor or /models change.
 */
 
-const SHELL_CACHE = 'seoul-shell-v2';
+const SHELL_CACHE = 'seoul-shell-v3';
 const HEAVY_CACHE = 'seoul-heavy-mediapipe-1.0.1';
 
 const SHELL = [
@@ -20,6 +20,7 @@ const SHELL = [
   '/manifest.json',
   '/assets/logo-mark.png',
   '/assets/logo-mask.png',
+  '/assets/attract-polaroid.jpg',
   '/assets/video/attract-curtain.mp4',
   '/assets/video/attract-curtain.jpg',
 ];
