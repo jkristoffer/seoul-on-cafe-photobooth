@@ -1,11 +1,125 @@
 {
   "$comment": "Maps raw generator output to sticker ids. Generator filenames are opaque and unstable, so the mapping is recorded here rather than inferred.",
   "assets": [
-    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (1).png", "set": "badge", "id": "cafe-on-seoul" },
-    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (2).png", "set": "badge", "id": "meet-me-at" },
-    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (3).png", "set": "badge", "id": "annyeong" },
-    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (4).png", "set": "badge", "id": "freshly-baked" },
-    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (5).png", "set": "badge", "id": "seoulful-sip" },
-    { "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (6).png", "set": "badge", "id": "kuching" }
+    {
+      "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (1).png",
+      "set": "badge",
+      "id": "cafe-on-seoul"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (2).png",
+      "set": "badge",
+      "id": "meet-me-at"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_28 PM (3).png",
+      "set": "badge",
+      "id": "annyeong"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (4).png",
+      "set": "badge",
+      "id": "freshly-baked"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (5).png",
+      "set": "badge",
+      "id": "seoulful-sip"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 18, 2026 at 07_23_29 PM (6).png",
+      "set": "badge",
+      "id": "kuching"
+    },
+    {
+      "src": "tmp/gen/mascot-dog-apron.png",
+      "set": "mascot",
+      "id": "dog-apron"
+    },
+    {
+      "src": "tmp/gen/mascot-dog-coffee.png",
+      "set": "mascot",
+      "id": "dog-coffee"
+    },
+    {
+      "src": "tmp/gen/mascot-dog-heart.png",
+      "set": "mascot",
+      "id": "dog-heart"
+    },
+    {
+      "src": "tmp/gen/mascot-dog-peek.png",
+      "set": "mascot",
+      "id": "dog-peek"
+    },
+    {
+      "src": "tmp/gen/mascot-dog-sit.png",
+      "set": "mascot",
+      "id": "dog-sit"
+    },
+    {
+      "src": "tmp/gen/mascot-dog-sleep.png",
+      "set": "mascot",
+      "id": "dog-sleep"
+    },
+    {
+      "src": "tmp/gen/menu-bingsu.png",
+      "set": "menu",
+      "id": "bingsu"
+    },
+    {
+      "src": "tmp/gen/menu-blossom-tea.png",
+      "set": "menu",
+      "id": "blossom-tea"
+    },
+    {
+      "src": "tmp/gen/menu-bubble-tea.png",
+      "set": "menu",
+      "id": "bubble-tea"
+    },
+    {
+      "src": "tmp/gen/menu-croffle.png",
+      "set": "menu",
+      "id": "croffle"
+    },
+    {
+      "src": "tmp/gen/menu-croissant.png",
+      "set": "menu",
+      "id": "croissant"
+    },
+    {
+      "src": "tmp/gen/menu-dalgona.png",
+      "set": "menu",
+      "id": "dalgona"
+    },
+    {
+      "src": "tmp/gen/menu-latte.png",
+      "set": "menu",
+      "id": "latte"
+    },
+    {
+      "src": "tmp/gen/menu-matcha.png",
+      "set": "menu",
+      "id": "matcha"
+    },
+    {
+      "src": "tmp/gen/place-cat-kuching.png",
+      "set": "place",
+      "id": "cat-kuching"
+    },
+    {
+      "src": "tmp/gen/place-hibiscus.png",
+      "set": "place",
+      "id": "hibiscus"
+    },
+    {
+      "src": "tmp/gen/place-hornbill.png",
+      "set": "place",
+      "id": "hornbill"
+    },
+    {
+      "src": "tmp/gen/place-palm.png",
+      "set": "place",
+      "id": "palm"
+    }
   ]
 }
