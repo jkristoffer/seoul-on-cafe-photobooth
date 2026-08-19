@@ -1,58 +1,120 @@
 {
   "$comment": "The sticker catalog. `subject` is the only free-form text the engine injects into the locked style block — keep it to the object itself, never to style, color, or framing, or you break set consistency.",
-
   "sets": {
     "mascot": {
       "label": "마스코트 / MASCOT",
       "$comment": "Cafe On Seoul's black-and-tan dachshund appears in nearly all their marketing. Highest-value art in the whole set.",
-      "sharedSubject": "a black-and-tan miniature dachshund with long body, short legs, floppy ears and a warm friendly expression",
+      "sharedSubject": "a miniature dachshund with a deep forest green body, teak brown markings on the ears, muzzle and legs, a cream chest, long body, short legs, floppy ears and a warm friendly expression",
       "items": [
-        { "id": "dog-sit",     "subject": "sitting upright, facing the viewer, tail curled" },
-        { "id": "dog-coffee",  "subject": "sitting behind a small cup of coffee, front paws resting on the table" },
-        { "id": "dog-peek",    "subject": "peeking over the bottom edge, only head and two front paws visible" },
-        { "id": "dog-heart",   "subject": "sitting with a small heart floating above its head" },
-        { "id": "dog-apron",   "subject": "standing in a barista apron, facing the viewer" },
-        { "id": "dog-sleep",   "subject": "curled up asleep in a circle, eyes closed" }
+        {
+          "id": "dog-sit",
+          "subject": "sitting upright, facing the viewer, tail curled"
+        },
+        {
+          "id": "dog-coffee",
+          "subject": "sitting behind a small cup of coffee, front paws resting on the table"
+        },
+        {
+          "id": "dog-peek",
+          "subject": "peeking over the bottom edge, only head and two front paws visible"
+        },
+        {
+          "id": "dog-heart",
+          "subject": "sitting with a small heart floating above its head"
+        },
+        {
+          "id": "dog-apron",
+          "subject": "standing in a barista apron, facing the viewer"
+        },
+        {
+          "id": "dog-sleep",
+          "subject": "curled up asleep, head resting on front paws, eyes closed as simple curved lines, cream chest and belly clearly visible against the darker back, with an open gap between the nose and the tail so the curl reads as a dog and not a solid disc"
+        }
       ]
     },
-
     "menu": {
       "label": "메뉴 / MENU",
       "$comment": "Their actual signature menu. A sticker naming what the guest just drank is the one they reach for.",
       "sharedSubject": "a single Korean cafe menu item, presented straight-on as a product icon",
       "items": [
-        { "id": "bingsu",      "subject": "a bamboo bowl of Korean bingsu shaved ice topped with a swirl of cream and a drizzle" },
-        { "id": "croffle",     "subject": "a croissant-waffle croffle on a small plate with a scoop of cream on top" },
-        { "id": "dalgona",     "subject": "a round flat dalgona candy disc with a star shape pressed into its center" },
-        { "id": "matcha",      "subject": "a tall clear glass of iced matcha latte with a green layer over a cream layer, and a straw" },
-        { "id": "latte",       "subject": "a ceramic cup of hot latte on a saucer with a leaf pattern in the foam" },
-        { "id": "blossom-tea", "subject": "a clear glass teapot of blossom tea with a flower unfurling inside" },
-        { "id": "croissant",   "subject": "a plump buttery croissant seen from the side" },
-        { "id": "bubble-tea",  "subject": "a sealed plastic cup of milk tea with dark tapioca pearls at the bottom and a wide straw" }
+        {
+          "id": "bingsu",
+          "subject": "a bamboo bowl of Korean bingsu shaved ice topped with a swirl of cream and a drizzle"
+        },
+        {
+          "id": "croffle",
+          "subject": "a croissant-waffle croffle on a small plate with a scoop of cream on top"
+        },
+        {
+          "id": "dalgona",
+          "subject": "a round flat dalgona candy disc with a star shape pressed into its center"
+        },
+        {
+          "id": "matcha",
+          "subject": "a tall clear glass of iced matcha latte with a green layer over a cream layer, and a straw"
+        },
+        {
+          "id": "latte",
+          "subject": "a ceramic cup of hot latte on a saucer with a leaf pattern in the foam"
+        },
+        {
+          "id": "blossom-tea",
+          "subject": "a clear glass teapot of blossom tea with a flower unfurling inside"
+        },
+        {
+          "id": "croissant",
+          "subject": "a plump buttery croissant seen from the side"
+        },
+        {
+          "id": "bubble-tea",
+          "subject": "a sealed plastic cup of milk tea with dark tapioca pearls at the bottom and a wide straw"
+        }
       ]
     },
-
     "place": {
       "label": "쿠칭 / KUCHING",
       "$comment": "The venue is in Kuching, Sarawak. Local landmarks make the polaroid a souvenir of THIS cafe, not of Seoul.",
       "sharedSubject": "a simple emblem-style icon",
       "items": [
-        { "id": "hibiscus",    "subject": "a hibiscus flower, Malaysia's national flower, seen face-on" },
-        { "id": "cat-kuching", "subject": "a sitting cat with a curled tail, a nod to Kuching the Cat City" },
-        { "id": "hornbill",    "subject": "a hornbill bird in profile with its large curved casque beak" },
-        { "id": "palm",        "subject": "two crossed tropical palm fronds" }
+        {
+          "id": "hibiscus",
+          "subject": "a hibiscus flower, Malaysia's national flower, seen face-on"
+        },
+        {
+          "id": "cat-kuching",
+          "subject": "a sitting cat with a curled tail, a nod to Kuching the Cat City"
+        },
+        {
+          "id": "hornbill",
+          "subject": "a hornbill bird in profile with its large curved casque beak"
+        },
+        {
+          "id": "palm",
+          "subject": "two crossed tropical palm fronds"
+        }
       ]
     },
-
     "deco": {
       "label": "장식 / DECO",
       "$comment": "Generic frame furniture. Lowest priority — Noto Emoji already covers much of this ground.",
       "sharedSubject": "a small decorative sticker element",
       "items": [
-        { "id": "sparkle-cluster", "subject": "a cluster of three four-pointed sparkles of different sizes" },
-        { "id": "ribbon-bow",      "subject": "a neat ribbon bow tied at the center" },
-        { "id": "film-strip",      "subject": "a short curved strip of 35mm film with four empty frames" },
-        { "id": "speech-heart",    "subject": "a rounded speech bubble with a small heart inside" }
+        {
+          "id": "sparkle-cluster",
+          "subject": "a cluster of three four-pointed sparkles of different sizes"
+        },
+        {
+          "id": "ribbon-bow",
+          "subject": "a neat ribbon bow tied at the center"
+        },
+        {
+          "id": "film-strip",
+          "subject": "a short curved strip of 35mm film with four empty frames"
+        },
+        {
+          "id": "speech-heart",
+          "subject": "a rounded speech bubble with a small heart inside"
+        }
       ]
     }
   }

@@ -24,32 +24,32 @@ Reply "ready" and wait. Then I will name one subject at a time. For each, genera
 
 ## 1. mascot-dog-sit.png
 ```
-Same style. Subject: a black-and-tan miniature dachshund with long body, short legs, floppy ears and a warm friendly expression, sitting upright, facing the viewer, tail curled.
+Same style. Subject: a miniature dachshund with a deep forest green body, teak brown markings on the ears, muzzle and legs, a cream chest, long body, short legs, floppy ears and a warm friendly expression, sitting upright, facing the viewer, tail curled.
 ```
 
 ## 2. mascot-dog-coffee.png
 ```
-Same style. Subject: a black-and-tan miniature dachshund with long body, short legs, floppy ears and a warm friendly expression, sitting behind a small cup of coffee, front paws resting on the table.
+Same style. Subject: a miniature dachshund with a deep forest green body, teak brown markings on the ears, muzzle and legs, a cream chest, long body, short legs, floppy ears and a warm friendly expression, sitting behind a small cup of coffee, front paws resting on the table.
 ```
 
 ## 3. mascot-dog-peek.png
 ```
-Same style. Subject: a black-and-tan miniature dachshund with long body, short legs, floppy ears and a warm friendly expression, peeking over the bottom edge, only head and two front paws visible.
+Same style. Subject: a miniature dachshund with a deep forest green body, teak brown markings on the ears, muzzle and legs, a cream chest, long body, short legs, floppy ears and a warm friendly expression, peeking over the bottom edge, only head and two front paws visible.
 ```
 
 ## 4. mascot-dog-heart.png
 ```
-Same style. Subject: a black-and-tan miniature dachshund with long body, short legs, floppy ears and a warm friendly expression, sitting with a small heart floating above its head.
+Same style. Subject: a miniature dachshund with a deep forest green body, teak brown markings on the ears, muzzle and legs, a cream chest, long body, short legs, floppy ears and a warm friendly expression, sitting with a small heart floating above its head.
 ```
 
 ## 5. mascot-dog-apron.png
 ```
-Same style. Subject: a black-and-tan miniature dachshund with long body, short legs, floppy ears and a warm friendly expression, standing in a barista apron, facing the viewer.
+Same style. Subject: a miniature dachshund with a deep forest green body, teak brown markings on the ears, muzzle and legs, a cream chest, long body, short legs, floppy ears and a warm friendly expression, standing in a barista apron, facing the viewer.
 ```
 
 ## 6. mascot-dog-sleep.png
 ```
-Same style. Subject: a black-and-tan miniature dachshund with long body, short legs, floppy ears and a warm friendly expression, curled up asleep in a circle, eyes closed.
+Same style. Subject: a miniature dachshund with a deep forest green body, teak brown markings on the ears, muzzle and legs, a cream chest, long body, short legs, floppy ears and a warm friendly expression, curled up asleep, head resting on front paws, eyes closed as simple curved lines, cream chest and belly clearly visible against the darker back, with an open gap between the nose and the tail so the curl reads as a dog and not a solid disc.
 ```
 
 ## 7. menu-bingsu.png
