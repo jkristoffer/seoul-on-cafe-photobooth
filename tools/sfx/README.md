@@ -145,10 +145,31 @@ came back at 3.4 s and `ko-done` at 3.0 s against a stated 2.5 s ceiling, and an
 audio tag changes duration on its own — adding `[warmly]` to `ms-decorate` took it
 from 1.61 s to 2.05 s.
 
-**Tags are how tone gets fixed.** `eleven_v3` reads bracketed tags as direction and
-does not speak them, and they can change mid-line: `wake` in Malay is
-`[cheerful] Selamat datang! [warmly] Rasanya cantik ni.` — bright on the greeting,
-soft on the compliment. A flat read is a missing tag, not a bad voice.
+**Tags are how tone gets fixed**, and they change duration as much as tone.
+`eleven_v3` reads bracketed tags as direction and does not speak them, and they can
+change mid-line: `wake` in Malay is `[quickly] Selamat datang! [warmly] Rasanya
+cantik ni.` — brisk on the greeting, soft on the compliment. A flat read is a
+missing tag, not a bad voice.
+
+The tags are not interchangeable adjectives. On the same Malay lines, `[warmly]`
+ran `decorate` to 2.05 s and `qr` to 3.39 s; `[cheerful]` gave 1.53 s and 2.90 s.
+Warmth costs about a third of the line's length.
+
+**The model paces sentences like a reader, not a speaker.** It left ~600 ms between
+the two halves of the Malay greeting, which reads as two recordings rather than one
+person talking. No tag fixed it — `[quickly]`, `[fast, casual]` and a comma splice
+were all measured, and all kept a pause of roughly that length. It is cut out
+afterwards instead, down to 250 ms:
+
+```sh
+ffmpeg -i raw.mp3 -filter_complex \
+  "[0:a]atrim=end=1.348,asetpts=PTS-STARTPTS[x];\
+   [0:a]atrim=start=1.699,asetpts=PTS-STARTPTS[y];[x][y]concat=n=2:v=0:a=1" tight.mp3
+```
+
+So `ms-welcome.mp3` is **not** a straight render of the text in `lines.json` — the
+`ms_edit` field on that line records the edit. The bounds move on every
+regeneration; re-measure them with `silencedetect` rather than reusing these.
 
 ## Music
 

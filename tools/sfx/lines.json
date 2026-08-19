@@ -26,8 +26,9 @@
       "hook": "show('frame') from attract — the first thing a guest ever hears. Doubles as the frame screen's line; there is no second line on that screen.",
       "ko": "[warmly] 어서 오세요! 오늘 잘 나올 것 같은데요?",
       "ko_gloss": "Welcome! I have a feeling these are going to come out well.",
-      "ms": "[cheerful] Selamat datang! [warmly] Rasanya cantik ni.",
-      "ms_gloss": "Welcome! I reckon this'll turn out lovely."
+      "ms": "[quickly] Selamat datang! [warmly] Rasanya cantik ni.",
+      "ms_gloss": "Welcome! I reckon this'll turn out lovely.",
+      "ms_edit": "The shipped ms-welcome.mp3 is NOT a straight render of this text. The model puts a ~600 ms pause between the two sentences, which reads as two recordings rather than one person talking. 350 ms of it is cut out afterwards, leaving 250 ms: ffmpeg -i raw.mp3 -filter_complex \"[0:a]atrim=end=1.348,asetpts=PTS-STARTPTS[x];[0:a]atrim=start=1.699,asetpts=PTS-STARTPTS[y];[x][y]concat=n=2:v=0:a=1\" tight.mp3 — re-measure the pause bounds with silencedetect after any regeneration, they move."
     },
     "frame": {
       "role": "retired",
@@ -98,7 +99,7 @@
       "hook": "show('decorate')",
       "ko": "스티커로 꾸며 보세요.",
       "ko_gloss": "Try decorating it with stickers.",
-      "ms": "[warmly] Hias dengan pelekat.",
+      "ms": "[cheerful] Hias dengan pelekat.",
       "ms_gloss": "Decorate it with stickers."
     },
     "printing": {
@@ -122,7 +123,7 @@
       "hook": "setQrState('ready'), which can resolve while done is still speaking — queued behind it rather than interrupting. Skipped entirely when the upload failed.",
       "ko": "큐알 찍으면 파일도 가져가실 수 있어요.",
       "ko_gloss": "Scan the QR and you can take the file too.",
-      "ms": "[warmly] Imbas QR untuk simpan gambar digital.",
+      "ms": "[cheerful] Imbas QR untuk simpan gambar digital.",
       "ms_gloss": "Scan the QR to keep the digital copy."
     }
   }
