@@ -9,10 +9,13 @@ them the digital file for 24 hours.
 ```
 public/index.html      the kiosk itself — fixed 1280x800 stage, vanilla JS
 public/p.html          guest download page, served at /p/:id
+public/g.html          guest book — /guestbook (archive) and /wall (display)
 public/assets/         brand mark (alpha mask + square favicon)
 api/_db.ts             shared Supabase client, TTL and id format
 api/upload.ts          POST a composited JPEG, returns { id, shareUrl, qr }
 api/photo.ts           GET ?id= — resolves a short code to a blob URL
+api/entry.ts           POST — the guest's consent, message and takedown
+api/guestbook.ts       GET — the consented feed, newest first
 api/cron/purge.ts      deletes expired blobs, keeps the rows
 supabase/migrations/   schema, applied with `supabase db push`
 ```
@@ -51,12 +54,62 @@ whatever it sits on: cream on the green chrome, green on cream. Using the source
 JPEG directly would paste its own `#084325` background over the kiosk's
 `#123B26` and show a visible square.
 
+## The guest book
+
+Consented photos go on a wall in the cafe and into a browsable archive.
+
+| Surface | What it is |
+|---|---|
+| `/wall` | A display screen. One row of four, replaced whole every 20s, nothing operable. |
+| `/guestbook` | The archive. Scrolls back through time on a keyset cursor. |
+
+Both are `public/g.html`; the wall is a body class, because the difference
+between them is who is looking, not how the data is shaped.
+
+**An entry is a photo row with `consented_at` set.** No second table, no join,
+and withdrawal is just clearing the column. That one column drives three things
+at once: the purge skips the row, `/api/photo` stops returning 410 for it, and
+`/api/guestbook` starts including it.
+
+Consent is only ever the guest's own act, from two surfaces:
+
+- **The kiosk**, on the print screen, once the upload has a code. It rides on the
+  same resolution as the QR because both need one. There is no text entry here —
+  the booth asks the yes/no and points at the QR for the message.
+- **The QR page**, which is the surface with a real keyboard. It is the only place
+  a message is written and the only place an entry can be taken back down.
+
+Three consequences worth knowing before changing any of this:
+
+- **A consented photo's link does not expire.** This is not a loosened promise but
+  a requirement: the link is the guest's whole credential over the entry, and a
+  page that has gone 410 cannot offer them the button that takes it down. The
+  24-hour countdown is hidden while the entry stands and returns the moment it
+  comes down.
+- **An entry is mutable.** A message can land minutes after the photo went up, so
+  the wall has to handle an entry gaining a caption between polls.
+- **Declining sends no request.** Private is what the row already says, and the
+  booth should not need the network to keep a promise it has already kept.
+
+`/api/guestbook` is the one endpoint in the system that enumerates photos, which
+everything else is built to prevent. It is safe only because of its `where`
+clause, so its column list is deliberately narrow — in particular the code never
+leaves the table, because the code is what edits an entry. Reading through a
+function rather than opening an RLS policy to the anon key keeps the browser side
+dependency-free and makes the returned columns explicit rather than whatever a
+row filter happens to leave behind.
+
+**Still to build:** moderation (`hidden_at` exists and is honoured by the feed, but
+nothing sets it yet), the Instagram-seeded empty state, and a retention limit —
+"permanent" is currently literal.
+
 ## The 24-hour promise
 
 Two separate mechanisms, because Vercel Blob has no native TTL:
 
 1. `/api/photo` returns **410 Gone** once `uploadedAt + 24h` has passed. This is
-   what actually enforces the expiry the kiosk prints on screen.
+   what actually enforces the expiry the kiosk prints on screen. A consented
+   photo is exempt — see the guest book above.
 2. The daily cron deletes the bytes. Hobby plans cap crons at once per day, so
    files can linger a few hours after their link has already gone dead.
 
