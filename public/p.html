@@ -42,6 +42,40 @@
                   font-family: 'IBM Plex Sans KR', sans-serif; opacity: 1; }
   #actions { display: none; width: 100%; flex-direction: column; gap: 14px; }
   #actions.on { display: flex; }
+
+  /* The guest book card. This is the surface with a real keyboard, so it is the
+     only place a message is ever written — and the only place an entry can be
+     taken back down, since this link is the guest's whole credential over it. */
+  #gb { display: none; width: 100%; flex-direction: column; gap: 14px;
+        background: rgba(247,241,227,.07); padding: 20px; }
+  #gb.on { display: flex; }
+  #gb-head { font-size: 17px; font-weight: 600; line-height: 1.4; }
+  #gb-sub { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .1em;
+            line-height: 1.8; opacity: .55; }
+  #gb-choice { display: none; gap: 10px; }
+  #gb-choice.on { display: flex; }
+  #gb button {
+    flex: 1; padding: 16px 0; cursor: pointer; font-family: inherit;
+    font-size: 16px; font-weight: 600; border: 1px solid transparent;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  #gb #gb-yes, #gb #gb-save { background: var(--cream); color: var(--green); }
+  #gb #gb-no { background: transparent; color: rgba(247,241,227,.55); border-color: rgba(247,241,227,.2); }
+  #gb-msg { display: none; flex-direction: column; gap: 10px; }
+  #gb-msg.on { display: flex; }
+  #gb-text {
+    width: 100%; min-height: 84px; resize: vertical; padding: 13px;
+    background: rgba(0,0,0,.28); color: var(--cream); border: 1px solid rgba(247,241,227,.18);
+    font-family: 'IBM Plex Sans KR', sans-serif; font-size: 16px; line-height: 1.5;
+  }
+  #gb-text:focus { outline: 2px solid var(--butter); outline-offset: 2px; }
+  #gb-count { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .1em;
+              opacity: .45; text-align: right; font-variant-numeric: tabular-nums; }
+  /* Withdrawal is deliberately quiet — findable, not reached for by accident. */
+  #gb #gb-remove { display: none; background: none; border: 0; padding: 4px 0; flex: none;
+                   font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .12em;
+                   font-weight: 400; color: rgba(247,241,227,.45); text-decoration: underline; }
+  #gb #gb-remove.on { display: block; }
 </style>
 </head>
 <body>
@@ -61,6 +95,21 @@
       OR PRESS AND HOLD THE PHOTO TO SAVE<br>
       <span id="expiry"></span>
     </div>
+  </div>
+  <div id="gb">
+    <div id="gb-head"></div>
+    <div id="gb-sub"></div>
+    <div id="gb-choice">
+      <button id="gb-yes" type="button">방명록에 남기기 · YES</button>
+      <button id="gb-no" type="button">아니요 · NO</button>
+    </div>
+    <div id="gb-msg">
+      <textarea id="gb-text" maxlength="140" rows="3"
+                placeholder="한마디 남겨 주세요 · LEAVE A MESSAGE"></textarea>
+      <div id="gb-count"></div>
+      <button id="gb-save" type="button">메시지 저장 · SAVE MESSAGE</button>
+    </div>
+    <button id="gb-remove" type="button">방명록에서 내리기 · TAKE IT DOWN</button>
   </div>
 </main>
 
@@ -108,8 +157,85 @@ async function load() {
   const dl = $('download');
   dl.href = data.url;
   dl.setAttribute('download', 'seoul-photobooth-' + data.id + '.jpg');
-  $('expiry').textContent = hoursLeft(data.expiresAt);
+  // A consented photo has no deadline while the consent stands, so the countdown
+  // would be a lie. It comes back the moment the guest takes the entry down.
+  $('expiry').textContent = data.consented ? '' : hoursLeft(data.expiresAt);
+  expiresAt = data.expiresAt;
+
+  gb.state = data.consented ? 'on' : 'ask';
+  if (data.message) $('gb-text').value = data.message;
+  renderGb();
+  $('gb').classList.add('on');
 }
+
+/* ---------- guest book ---------- */
+
+const MESSAGE_MAX = 140;
+let expiresAt = 0;
+
+// 'ask' | 'saving' | 'on', plus a sticky error flag. Rendered from state rather
+// than mutated in place, so consent, message and withdrawal all repaint the same
+// way and there is no half-updated card.
+const gb = { state: 'ask', error: false };
+
+const GB_COPY = {
+  ask:    ['이 사진을 방명록에 남길까요?', 'IT WILL SHOW IN THE CAFE · TAKE IT DOWN ANY TIME'],
+  saving: ['저장하는 중',                 'SAVING…'],
+  on:     ['방명록에 올라와 있어요',       'ADD A MESSAGE, OR TAKE IT DOWN BELOW'],
+};
+
+function renderGb() {
+  const [head, sub] = GB_COPY[gb.state];
+  $('gb-head').textContent = head;
+  // The error rides on the second line rather than replacing the state, so a
+  // guest whose entry is up and whose message failed to save is told exactly
+  // that — not shown a question they have already answered.
+  $('gb-sub').textContent = gb.error ? '저장하지 못했어요 · COULD NOT SAVE — NOTHING CHANGED' : sub;
+  $('gb-choice').classList.toggle('on', gb.state === 'ask');
+  // The message and the takedown belong to an entry that exists. Both disappear
+  // the moment consent is withdrawn, rather than lingering as dead controls.
+  $('gb-msg').classList.toggle('on', gb.state === 'on');
+  $('gb-remove').classList.toggle('on', gb.state === 'on');
+  countGb();
+}
+
+function countGb() {
+  $('gb-count').textContent = $('gb-text').value.length + ' / ' + MESSAGE_MAX;
+}
+
+async function postEntry(patch) {
+  const prev = gb.state;
+  gb.state = 'saving';
+  gb.error = false;
+  renderGb();
+  try {
+    const res = await fetch('/api/entry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ id }, patch)),
+    });
+    if (!res.ok) throw new Error('entry failed: ' + res.status);
+    const out = await res.json();
+    gb.state = out.consented ? 'on' : 'ask';
+    // The 24-hour countdown is meaningful again once the entry comes down.
+    $('expiry').textContent = out.consented ? '' : hoursLeft(expiresAt);
+  } catch (err) {
+    console.error(err);
+    // Fail closed: nothing reached the server, so the card goes back to exactly
+    // what it was and says the attempt did not land.
+    gb.state = prev;
+    gb.error = true;
+  }
+  renderGb();
+}
+
+$('gb-yes').addEventListener('click', () => postEntry({ consent: true }));
+// Declining before consenting changes nothing on the server; the photo is
+// already private and already expiring. Just close the question.
+$('gb-no').addEventListener('click', () => { $('gb').classList.remove('on'); });
+$('gb-save').addEventListener('click', () => postEntry({ message: $('gb-text').value }));
+$('gb-remove').addEventListener('click', () => postEntry({ consent: false }));
+$('gb-text').addEventListener('input', countGb);
 
 load();
 </script>
