@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>방명록 · SE/O UL Photo Booth</title>
+<link rel="icon" type="image/png" href="/assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Two surfaces, one page.
+     /guestbook is the archive: opened deliberately, usually by someone who is in
+     it, scrolled back through time.
+     /wall is the display: seen by people in the room who made none of these, from
+     across a cafe, never touched.
+     They read the same feed and differ only in how much of it is on screen at
+     once, which is why the wall is a body class rather than a second page. */
+  :root { --green:#123B26; --green-deep:#0E3020; --cream:#F7F1E3; --butter:#E8B84B; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100svh; background: var(--green-deep); color: var(--cream);
+    font-family: 'IBM Plex Sans KR', sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 26px 24px calc(26px + env(safe-area-inset-top));
+  }
+  .logo {
+    width: 30px; height: 36px; flex: none;
+    -webkit-mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    background-color: currentColor;
+  }
+  .titles { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
+  .t1 { font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: .2em; font-weight: 600; }
+  .t2 { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .18em; opacity: .42; }
+
+  /* The polaroid, rebuilt for the web: the kiosk's proportions, not its markup.
+     The frame colour is the one the guest chose, so the grid keeps the variety
+     the film screen offers instead of flattening every entry to white. */
+  .grid {
+    display: grid; gap: 26px; padding: 0 24px 64px;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    max-width: 1180px; margin: 0 auto;
+  }
+  .card { display: flex; flex-direction: column; gap: 11px; }
+  .pol { padding: 13px 13px 0; box-shadow: 0 14px 30px rgba(0,0,0,.34); }
+  .pol img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: rgba(0,0,0,.2); }
+  .cap {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'IBM Plex Mono', monospace; font-size: 8px; letter-spacing: .14em;
+    padding: 10px 1px 12px; opacity: .75;
+  }
+  .msg { font-size: 14px; line-height: 1.55; opacity: .92; }
+  /* A guest's own words, so they are never reflowed into the layout's voice —
+     no truncation, no ellipsis. An entry with no message is simply a photo. */
+  .msg:empty { display: none; }
+
+  .note { padding: 60px 24px; text-align: center; font-family: 'IBM Plex Mono', monospace;
+          font-size: 12px; letter-spacing: .14em; opacity: .5; line-height: 2.2; }
+  #more { display: none; margin: 0 auto 64px; padding: 15px 34px; cursor: pointer;
+          background: transparent; color: rgba(247,241,227,.6); border: 1px solid rgba(247,241,227,.2);
+          font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .14em; }
+  #more.on { display: block; }
+  #more:hover { color: var(--cream); }
+
+  /* ------- wall -------
+     Fewer entries, much bigger, and nothing that looks operable: no button, no
+     scrollbar, no hover state. A screen on a wall is read, not used. */
+  body.wall { overflow: hidden; height: 100svh; display: flex; flex-direction: column; }
+  body.wall header { padding: 30px 44px; }
+  body.wall .t1 { font-size: 17px; }
+  body.wall .t2 { font-size: 12px; }
+  /* A polaroid is square, so the wall is sized by the screen's height rather
+     than its width: capping the column at a fraction of the viewport height
+     keeps the photo square and keeps the row inside a display that cannot
+     scroll, where anything too tall is silently cut off instead of overflowing
+     visibly. The min() lets a narrow screen fall back to the column width. */
+  body.wall .grid {
+    flex: 1; min-height: 0; max-width: none; padding: 0 44px 44px; gap: 40px;
+    grid-template-columns: repeat(4, minmax(0, min(100%, 52svh)));
+    justify-content: center; align-content: center;
+  }
+  body.wall .pol { padding: 18px 18px 0; }
+  body.wall .cap { font-size: 10px; padding: 14px 2px 16px; }
+  body.wall .msg { font-size: 19px; line-height: 1.45; }
+  body.wall #more { display: none !important; }
+  /* Entries fade in as the wall turns over, so a change reads as the room
+     breathing rather than as a page reloading. */
+  body.wall .card { animation: rise .7s ease both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { body.wall .card { animation: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" role="img" aria-label="SE/O UL"></div>
+  <div class="titles">
+    <div class="t1">방명록 · GUEST BOOK</div>
+    <div class="t2">CAFE ON SEOUL</div>
+  </div>
+</header>
+
+<div id="note" class="note">불러오는 중<br>LOADING…</div>
+<div id="grid" class="grid"></div>
+<button id="more" type="button">더 보기 · LOAD MORE</button>
+
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+
+// The wall is the same page with less on screen. Driven by the path so the rewrite
+// needs no query string, and by ?wall for previewing it without one.
+const WALL = location.pathname === '/wall' || new URLSearchParams(location.search).has('wall');
+// One row on the wall. Four polaroids across a television are readable from the
+// far side of a cafe; eight are a contact sheet nobody looks at.
+const PAGE = WALL ? 4 : 30;
+// How often the wall asks for new entries. The feed is CDN-cached for 30s, so
+// this costs about one query a minute no matter how many screens are running.
+const POLL_MS = 20000;
+
+// The film stocks the kiosk offers. Kept in step with FRAMES in index.html by
+// eye, not by import — the kiosk is unbundled and this page is deliberately
+// standalone, so an unknown frame simply falls back to white rather than failing.
+const FRAMES = {
+  white: { bg: '#FFFDF8', ink: '#123B26' },
+  green: { bg: '#123B26', ink: '#F7F1E3' },
+  cream: { bg: '#EADFC4', ink: '#123B26' },
+  ink:   { bg: '#141414', ink: '#F7F1E3' },
+};
+
+function dateLabel(ms) {
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '.' + p(d.getMonth() + 1) + '.' + p(d.getDate());
+}
+
+function cardEl(entry) {
+  const fr = FRAMES[entry.frame] || FRAMES.white;
+
+  const card = document.createElement('div');
+  card.className = 'card';
+
+  const pol = document.createElement('div');
+  pol.className = 'pol';
+  pol.style.background = fr.bg;
+  pol.style.color = fr.ink;
+
+  const img = document.createElement('img');
+  img.src = entry.url;
+  img.loading = 'lazy';
+  img.alt = entry.message || 'A polaroid from the SE/O UL photo booth';
+
+  const cap = document.createElement('div');
+  cap.className = 'cap';
+  const left = document.createElement('span');
+  left.textContent = 'CAFE ON SEOUL';
+  const right = document.createElement('span');
+  right.textContent = dateLabel(entry.at);
+  cap.appendChild(left); cap.appendChild(right);
+
+  pol.appendChild(img); pol.appendChild(cap);
+  card.appendChild(pol);
+
+  // textContent, never innerHTML: this is a stranger's words rendered on a screen
+  // in a public room, and the one thing it must not be able to do is run.
+  const msg = document.createElement('div');
+  msg.className = 'msg';
+  msg.textContent = entry.message || '';
+  card.appendChild(msg);
+
+  return card;
+}
+
+async function fetchPage(before) {
+  const q = new URLSearchParams({ limit: String(PAGE) });
+  if (before) q.set('before', before);
+  const res = await fetch('/api/guestbook?' + q);
+  if (!res.ok) throw new Error('guestbook failed: ' + res.status);
+  return res.json();
+}
+
+/* ---------- archive ---------- */
+
+let cursor = null;
+let loading = false;
+
+async function loadMore() {
+  if (loading) return;
+  loading = true;
+  $('more').classList.remove('on');
+  try {
+    const data = await fetchPage(cursor);
+    data.entries.forEach(e => $('grid').appendChild(cardEl(e)));
+    cursor = data.next;
+    $('note').style.display = $('grid').children.length ? 'none' : '';
+    if (!$('grid').children.length) {
+      $('note').innerHTML = '아직 첫 사진을 기다리고 있어요<br>NO ENTRIES YET — BE THE FIRST';
+    }
+    $('more').classList.toggle('on', Boolean(cursor));
+  } catch (err) {
+    console.error(err);
+    $('note').style.display = '';
+    $('note').innerHTML = '방명록을 불러오지 못했어요<br>COULD NOT LOAD THE GUEST BOOK';
+  }
+  loading = false;
+}
+
+/* ---------- wall ---------- */
+
+// The wall replaces its whole set each time rather than appending, so it never
+// grows past one screen and never needs to scroll. Redrawing only when the feed
+// has actually changed keeps a static room from flickering every 20 seconds.
+let lastKey = '';
+
+async function refreshWall() {
+  try {
+    const data = await fetchPage(null);
+    const key = data.entries.map(e => e.at + ':' + (e.message || '')).join('|');
+    if (key === lastKey) return;
+    lastKey = key;
+
+    const grid = $('grid');
+    grid.innerHTML = '';
+    data.entries.forEach(e => grid.appendChild(cardEl(e)));
+    $('note').style.display = data.entries.length ? 'none' : '';
+    if (!data.entries.length) {
+      $('note').innerHTML = '아직 첫 사진을 기다리고 있어요<br>THE FIRST PHOTO GOES HERE';
+    }
+  } catch (err) {
+    // A wall that has already drawn keeps what it has: a network blip in a cafe
+    // should not blank a screen that is showing perfectly good photos.
+    console.error(err);
+  }
+}
+
+if (WALL) {
+  document.body.classList.add('wall');
+  refreshWall();
+  setInterval(refreshWall, POLL_MS);
+} else {
+  $('more').addEventListener('click', loadMore);
+  loadMore();
+}
+</script>
+</body>
+</html>

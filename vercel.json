@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/p/:id", "destination": "/p.html" }
+    { "source": "/p/:id", "destination": "/p.html" },
+    { "source": "/guestbook", "destination": "/g.html" },
+    { "source": "/wall", "destination": "/g.html" }
   ],
   "crons": [
     { "path": "/api/cron/purge", "schedule": "0 4 * * *" }
