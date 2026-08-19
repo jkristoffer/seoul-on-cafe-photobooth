@@ -47,7 +47,10 @@
     max-width: 1180px; margin: 0 auto;
   }
   .card { display: flex; flex-direction: column; gap: 11px; }
-  .pol { padding: 13px 13px 0; box-shadow: 0 14px 30px rgba(0,0,0,.34); }
+  /* The hairline ring is what keeps the dark film stocks — green and ink — from
+     dissolving into the page, which they otherwise do almost completely. It is
+     invisible under the light ones. */
+  .pol { padding: 13px 13px 0; box-shadow: 0 14px 30px rgba(0,0,0,.34), 0 0 0 1px rgba(247,241,227,.09); }
   .pol img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: rgba(0,0,0,.2); }
   .cap {
     display: flex; justify-content: space-between; align-items: center;
@@ -55,6 +58,12 @@
     padding: 10px 1px 12px; opacity: .75;
   }
   .msg { font-size: 14px; line-height: 1.55; opacity: .92; }
+  /* Seeded entries are the cafe's own photos. Naming them is not a disclaimer —
+     an untagged cafe shot among guest polaroids reads as manufactured social
+     proof, and named it reads as the cafe introducing itself. It sits in the
+     caption strip where a guest entry carries its date, so the card keeps its
+     shape either way. */
+  .byline { font-style: normal; letter-spacing: .12em; }
   /* A guest's own words, so they are never reflowed into the layout's voice —
      no truncation, no ellipsis. An entry with no message is simply a photo. */
   .msg:empty { display: none; }
@@ -154,14 +163,20 @@ function cardEl(entry) {
   const img = document.createElement('img');
   img.src = entry.url;
   img.loading = 'lazy';
-  img.alt = entry.message || 'A polaroid from the SE/O UL photo booth';
+  img.alt = entry.message ||
+    (entry.source === 'instagram' ? 'A photo from Cafe On Seoul' : 'A polaroid from the SE/O UL photo booth');
 
   const cap = document.createElement('div');
   cap.className = 'cap';
   const left = document.createElement('span');
   left.textContent = 'CAFE ON SEOUL';
   const right = document.createElement('span');
-  right.textContent = dateLabel(entry.at);
+  if (entry.source === 'instagram') {
+    right.className = 'byline';
+    right.textContent = '@cafe_on_seoul';
+  } else {
+    right.textContent = dateLabel(entry.at);
+  }
   cap.appendChild(left); cap.appendChild(right);
 
   pol.appendChild(img); pol.appendChild(cap);

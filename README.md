@@ -99,9 +99,20 @@ function rather than opening an RLS policy to the anon key keeps the browser sid
 dependency-free and makes the returned columns explicit rather than whatever a
 row filter happens to leave behind.
 
+**The guest book is never empty.** Three of the cafe's own photos from
+[@cafe_on_seoul](https://www.instagram.com/cafe_on_seoul/) ship as seeded rows —
+ordinary entries with `source = 'instagram'`, so they sort by their real post
+dates and sink as guests arrive. No second code path and no flicker on the day
+the first guest consents. Their bytes are committed assets under
+`public/assets/guestbook/`, not Vercel Blob, cropped square out of the marketing
+posters they were published in (the uncropped originals are kept alongside).
+
+`source` also makes them immutable: their codes are written down in a migration,
+and `/api/entry` authorises on the code alone, so without that guard anyone who
+read the repo could take the cafe's photos down.
+
 **Still to build:** moderation (`hidden_at` exists and is honoured by the feed, but
-nothing sets it yet), the Instagram-seeded empty state, and a retention limit —
-"permanent" is currently literal.
+nothing sets it yet) and a retention limit — "permanent" is currently literal.
 
 ## The 24-hour promise
 

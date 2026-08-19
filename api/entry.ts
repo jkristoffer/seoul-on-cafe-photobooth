@@ -50,15 +50,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sb = db();
   const { data: row, error: readError } = await sb
     .from('photos')
-    .select('id, expires_at, purged_at, consented_at')
+    .select('id, expires_at, purged_at, consented_at, source')
     .eq('id', id)
-    .maybeSingle<Pick<PhotoRow, 'id' | 'expires_at' | 'purged_at' | 'consented_at'>>();
+    .maybeSingle<Pick<PhotoRow, 'id' | 'expires_at' | 'purged_at' | 'consented_at' | 'source'>>();
 
   if (readError) {
     console.error('entry lookup failed', readError);
     return res.status(502).json({ error: 'lookup_failed' });
   }
   if (!row) return res.status(404).json({ error: 'not_found' });
+
+  // Seeded entries belong to the cafe, not to whoever holds the code — and their
+  // codes are written down in a migration, so they are guessable by anyone who
+  // reads the repo. This endpoint authorises on the code alone, which is right
+  // for a guest's own photo and wrong for these.
+  if (row.source) return res.status(403).json({ error: 'not_editable' });
 
   // Nothing can be done to a photo whose bytes are gone, and a private photo
   // past its deadline is already promised dead — consenting to it now would be

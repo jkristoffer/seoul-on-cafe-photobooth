@@ -20,7 +20,7 @@ import { db, type PhotoRow } from './_db.js';
 const PAGE_DEFAULT = 30;
 const PAGE_MAX = 100;
 
-type Row = Pick<PhotoRow, 'blob_url' | 'consented_at' | 'message' | 'frame'>;
+type Row = Pick<PhotoRow, 'blob_url' | 'consented_at' | 'message' | 'frame' | 'source'>;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const one = (v: unknown) => (Array.isArray(v) ? v[0] : v);
@@ -31,7 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let q = db()
     .from('photos')
-    .select('blob_url, consented_at, message, frame')
+    .select('blob_url, consented_at, message, frame, source')
     .not('consented_at', 'is', null)
     .is('hidden_at', null)
     .is('purged_at', null)
@@ -51,6 +51,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     at: new Date(r.consented_at!).getTime(),
     message: r.message,
     frame: r.frame,
+    // Drives the attribution mark. A cafe photo sitting untagged among guest
+    // polaroids reads as manufactured social proof; named, it is the cafe
+    // introducing itself.
+    source: r.source,
   }));
 
   // A wall polls; the CDN should absorb that. Thirty seconds is short enough

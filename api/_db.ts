@@ -24,6 +24,8 @@ export interface PhotoRow {
   message_at: string | null;
   /** Staff takedown, independent of consent. */
   hidden_at: string | null;
+  /** Null for guest photos; set for seeded entries, which are attributed and immutable. */
+  source: string | null;
 }
 
 let client: SupabaseClient | null = null;
