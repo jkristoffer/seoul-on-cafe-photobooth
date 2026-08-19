@@ -114,11 +114,11 @@ which one is acceptable where. Current picks: Jessica for Korean, Lily for Malay
 with an English gloss. Read the rules before adding a line — the constraint that
 matters most is that a line must survive its 200th play in a small room.
 
-**Nine lines ship in each language**, as `voice/<lang>-<id>.mp3`: `welcome`,
-`ready`, `between`, `between_alt`, `select`, `filter`, `decorate`, `done`, `qr`.
-Four more are written and deliberately **not** recorded — each carries a `role` of
-`retired` in `lines.json` with the reason attached. They are worth reading before
-adding a line, because they are the four ways a line fails here:
+**Seven lines ship in each language**, as `voice/<lang>-<id>.mp3`: `welcome`,
+`ready`, `select`, `filter`, `decorate`, `done`, `qr`. Six more are written and
+deliberately **not** recorded — each carries a `role` of `retired` in `lines.json`
+with the reason attached. Read them before adding a line; they are the ways a line
+fails here:
 
 - `countdown` — the count is beeps. A voice counting to three four times a session
   is the fastest way to make a booth tiresome. It stays in the file because three
@@ -128,18 +128,27 @@ adding a line, because they are the four ways a line fails here:
   screen is over-talking.
 - `printing` — it would sit on top of the 3.16 s eject motor, and the motor says
   "printing" better than words do.
-- `last` — it belongs in a gap that already carries a `between` line.
+- `between`, `between_alt`, `last` — **the shoot is voiceless.** These three were
+  written, recorded, shipped, and then cut after listening: a line in every gap
+  turns the shoot into a running commentary, and the beeps already carry the only
+  thing a guest needs to hear there.
 
-**A line written for a gap must be shorter than the gap.** The between-shot window
-is `CONFIG.shotGapMs` of clear air before the next countdown pip, which is room for
-one word. The first drafts of `between_alt` ("그거예요!", "Ha, macam tu!") measured
-1.4 s each and were re-written to single words; the gap was widened from 700 ms to
-1200 ms to give even those margin. Measure the trimmed file — do not trust how long
-a phrase looks on the page.
+The between-shot lines are the cautionary tale of this directory. They were also
+the hardest to fit — the first drafts ("그거예요!", "Ha, macam tu!") measured 1.4 s
+against a 700 ms gap, so they were cut to single words and `CONFIG.shotGapMs` was
+widened to 1200 ms to give even those margin. All of that work was correct and none
+of it was the right question, which was whether the gap wanted a voice at all. The
+gap is back to 700 ms.
 
-Length is the thing to check on every take. Nothing else about these lines needed
-correcting, but `ms-qr` came back at 3.4 s and `ko-done` at 3.0 s against a stated
-2.5 s ceiling, and only measurement catches that.
+**Measure every take.** A phrase is not as long as it looks on the page: `ms-qr`
+came back at 3.4 s and `ko-done` at 3.0 s against a stated 2.5 s ceiling, and an
+audio tag changes duration on its own — adding `[warmly]` to `ms-decorate` took it
+from 1.61 s to 2.05 s.
+
+**Tags are how tone gets fixed.** `eleven_v3` reads bracketed tags as direction and
+does not speak them, and they can change mid-line: `wake` in Malay is
+`[cheerful] Selamat datang! [warmly] Rasanya cantik ni.` — bright on the greeting,
+soft on the compliment. A flat read is a missing tag, not a bad voice.
 
 ## Music
 

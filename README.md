@@ -187,9 +187,9 @@ can kill the audio, just the music, or just the talking without touching the ass
 
 ## Voice
 
-The attendant speaks nine times a session, in the guest's chosen language. Each
-line is announced by `show()` 280 ms after its screen turns over, so the voice
-never talks across the transition it belongs to.
+The attendant speaks seven times a session, in the guest's chosen language. Each
+line is announced by `show()` 280 ms after its screen turns over, so the voice never
+talks across the transition it belongs to.
 
 Voice is serialised through **one slot**, because the booth generates overlaps
 naturally and two lines at once is unintelligible. Which way an overlap resolves is
@@ -198,29 +198,15 @@ belongs to the screen the guest is on now; a queued line waits. Only `qr` queues
 it follows `done`, which carries the only real instruction in the booth and is not
 allowed to be cut off.
 
-- **A line written for a gap must be shorter than the gap.** The between-shot lines
-  are one word each because `CONFIG.shotGapMs` is all the clear air there is before
-  the next countdown pip. That gap is 1200 ms rather than 700 for exactly this
-  reason, which also lands the four-shot sequence at 15.6 s against the 16 s bed.
+- **The shoot is voiceless.** Between-shot encouragement was built and then cut: a
+  line in every gap turns the shoot into a running commentary, and the beeps
+  already carry the only thing a guest needs to hear there.
 - **Announce timers outlive their screen.** A guest tapping through faster than
   280 ms would be announced two screens behind themselves, so the timer re-checks
   `state.screen` before it speaks.
 - **`chatter: false` keeps the bookends.** The welcome and the print line ignore it.
-  Ten spoken lines a session is a lot in a small room, but a booth that never says
-  how to hold a developing polaroid is worse.
-
-## Language
-
-The attract screen asks the guest to pick Korean or Bahasa Malaysia. The picker
-chooses **the voice only** — the interface stays bilingual Korean/English on every
-screen either way — and it exists in that spot because the autoplay policy needs a
-gesture before any sound can play, so the choice may as well be the start control.
-
-Tapping anywhere else on the attract screen starts the session in `CONFIG.voice`,
-so a guest who does not want to make a choice is never blocked by one. Guessing
-from `navigator.language` would be wrong for most guests on a shared kiosk.
-
-The choice drives `state.lang`, which selects both the UI strings and the voice set.
+  A booth that never says how to hold a developing polaroid is worse than a quiet
+  one.
 
 ## Kiosk operation
 

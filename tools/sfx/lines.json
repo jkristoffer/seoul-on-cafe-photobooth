@@ -8,25 +8,25 @@
     "charlotte": "XB0fDUnXU5powFXDhCwa",
     "alice": "Xb7hH8MSUJpSbSDYk0k2"
   },
-  "voices": { "ko": "jessica", "ms": "lily" },
-
+  "voices": {
+    "ko": "jessica",
+    "ms": "lily"
+  },
   "character": "The booth attendant is the cafe's dachshund mascot grown into a voice: short-legged, over-eager, absolutely certain this photo is going to be the good one. Warm, quick, never sarcastic. She compliments the guest and never the booth. Korean is 해요체 — polite but not stiff. Malay is casual spoken Malaysian, the register a cafe staffer actually uses, not textbook Bahasa Baku.",
-
   "rules": [
     "Under 2.5 seconds. Guests are posing, not listening.",
     "Never explain the interface — the screen already says it. Voice carries warmth, the screen carries instruction.",
     "Never apologise. A failed upload gets silence, not a voice line.",
     "Every line must survive its 200th play in a small room.",
-    "A line written for a gap must be shorter than the gap. The between-shot window is 700 ms of clear air before the next countdown pip, which is room for one word, not a sentence."
+    "A line written for a gap must be shorter than the gap — and most gaps are better left empty. The shoot has no voice in it at all."
   ],
-
   "lines": {
     "wake": {
       "role": "shipped",
       "hook": "show('frame') from attract — the first thing a guest ever hears. Doubles as the frame screen's line; there is no second line on that screen.",
       "ko": "[warmly] 어서 오세요! 오늘 잘 나올 것 같은데요?",
       "ko_gloss": "Welcome! I have a feeling these are going to come out well.",
-      "ms": "[warmly] Selamat datang! Rasanya cantik ni.",
+      "ms": "[cheerful] Selamat datang! [warmly] Rasanya cantik ni.",
       "ms_gloss": "Welcome! I reckon this'll turn out lovely."
     },
     "frame": {
@@ -54,16 +54,16 @@
       "ms_gloss": "One... two... three!"
     },
     "between": {
-      "role": "shipped",
-      "hook": "the gap after shots 1 and 3. One word: the next pip is 700 ms behind the shutter, so anything longer talks over the count.",
+      "role": "retired",
+      "hook": "NOT USED — cut after listening. A line in every gap turns the shoot into a running commentary, and the beeps already fill that space with the only information the guest needs there.",
       "ko": "[cheerful] 좋아요!",
       "ko_gloss": "Lovely!",
       "ms": "[cheerful] Cantik!",
       "ms_gloss": "Lovely!"
     },
     "between_alt": {
-      "role": "shipped",
-      "hook": "the gap after shot 2 — alternates with between so four shots do not repeat one word. 'Ha, macam tu!' and '그거예요!' were the first draft and read 1.4 s each, half a second over the gap.",
+      "role": "retired",
+      "hook": "NOT USED — retired with between, which it alternated against.",
       "ko": "[cheerful] 완벽해요!",
       "ko_gloss": "Perfect!",
       "ms": "[cheerful] Lawa!",
@@ -71,7 +71,7 @@
     },
     "last": {
       "role": "retired",
-      "hook": "NOT USED — it belongs in the gap before the fourth shot, but that gap already carries a between line and the slot counter already shows 3/4. Kept because it is the right line if the inter-shot gap is ever widened.",
+      "hook": "NOT USED — retired with the rest of the between-shot lines. The slot counter already shows 3/4, and the shoot is deliberately voiceless.",
       "ko": "마지막이에요. 제일 예쁘게!",
       "ko_gloss": "Last one. Make it the prettiest!",
       "ms": "Yang terakhir. Bagi paling cantik!",
@@ -80,9 +80,9 @@
     "select": {
       "role": "shipped",
       "hook": "show('select'), 700 ms after the fourth shutter",
-      "ko": "제일 잘 나온 걸로 골라 주세요.",
+      "ko": "[warmly] 제일 잘 나온 걸로 골라 주세요.",
       "ko_gloss": "Choose the one that came out best.",
-      "ms": "Pilih yang paling cantik.",
+      "ms": "[warmly] Pilih yang paling cantik.",
       "ms_gloss": "Choose the nicest one."
     },
     "filter": {
@@ -98,7 +98,7 @@
       "hook": "show('decorate')",
       "ko": "스티커로 꾸며 보세요.",
       "ko_gloss": "Try decorating it with stickers.",
-      "ms": "Hias dengan pelekat.",
+      "ms": "[warmly] Hias dengan pelekat.",
       "ms_gloss": "Decorate it with stickers."
     },
     "printing": {
@@ -122,7 +122,7 @@
       "hook": "setQrState('ready'), which can resolve while done is still speaking — queued behind it rather than interrupting. Skipped entirely when the upload failed.",
       "ko": "큐알 찍으면 파일도 가져가실 수 있어요.",
       "ko_gloss": "Scan the QR and you can take the file too.",
-      "ms": "Imbas QR untuk simpan gambar digital.",
+      "ms": "[warmly] Imbas QR untuk simpan gambar digital.",
       "ms_gloss": "Scan the QR to keep the digital copy."
     }
   }
