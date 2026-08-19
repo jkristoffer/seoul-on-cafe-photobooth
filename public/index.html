@@ -51,11 +51,17 @@
   .screen { display: none; }
   .screen.active { display: flex; }
 
-  /* ------- top chrome ------- */
+  /* ------- top chrome -------
+     A machine fascia, not a navigation bar. Nothing across the top is a place a
+     guest can go: the left is a nameplate, the middle is a readout of where the
+     booth currently is, and the right is two physical keys. The inset shadow at
+     the bottom edge and the lit top edge are what sell it as a plate screwed to
+     the front of a box rather than a strip of web page. */
   #chrome {
-    height: 72px; flex: none;
+    height: 72px; flex: none; position: relative;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px; background: var(--green); color: var(--cream);
+    padding: 0 20px 6px; background: var(--green); color: var(--cream);
+    box-shadow: inset 0 1px 0 rgba(247,241,227,.10), inset 0 -1px 0 rgba(0,0,0,.35);
   }
   #chrome.hidden { display: none; }
   /* Brand mark. An alpha mask rather than an <img>, so the wordmark inherits
@@ -68,36 +74,74 @@
   }
   .logo-mark.sm { width: 32px; height: 38px; }
   .logo-mark.lg { width: 88px; height: 104px; }
-  #steps { display: flex; align-items: center; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 14px; letter-spacing: .08em; }
-  #steps .step { padding: 10px 12px; border: 1px solid rgba(247,241,227,.2); color: rgba(247,241,227,.6); }
-  #steps .step.cur { border-color: transparent; background: var(--butter); color: var(--green); font-weight: 600; }
-  #restart {
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .12em;
-    padding: 14px 16px; border: 1px solid rgba(247,241,227,.35); cursor: pointer;
+  /* Nameplate: the booth's own label, the way a machine carries its model name.
+     Never interactive, so it is styled to be read and then ignored. */
+  #nameplate { display: flex; align-items: center; gap: 12px; }
+  #nameplate .lines { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
+  #nameplate .t1 { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; letter-spacing: .2em; }
+  #nameplate .t2 { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .18em; color: rgba(247,241,227,.42); }
+
+  /* The counter. A film-frame readout — where the booth is, not where the guest
+     may tap. Centred on the stage rather than by the flex row, so it does not
+     drift when the keys on the right change width between languages. */
+  #counter {
+    position: absolute; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 14px;
+    padding: 7px 16px; border-radius: 3px;
+    background: rgba(0,0,0,.28);
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.5), 0 1px 0 rgba(247,241,227,.07);
   }
-  #restart:hover { background: rgba(247,241,227,.12); }
+  #counter .num {
+    font-family: 'IBM Plex Mono', monospace; font-size: 22px; font-weight: 600;
+    color: var(--butter); font-variant-numeric: tabular-nums;
+  }
+  #counter .den { font-size: 13px; color: rgba(232,184,75,.45); }
+  #counter .rule { width: 1px; height: 26px; background: rgba(247,241,227,.16); }
+  #counter .name { display: flex; flex-direction: column; gap: 4px; line-height: 1; }
+  #counter .step-loc { font-family: 'IBM Plex Sans KR', sans-serif; font-size: 15px; font-weight: 600; }
+  #counter .step-en { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .16em; color: rgba(247,241,227,.5); }
+
+  /* Progress runs along the bottom edge of the fascia, full width. Six unlabelled
+     segments: a guest reads it as how far along they are, and there is nothing
+     about it that looks like six things to press. */
+  #steprail { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; display: flex; gap: 2px; }
+  #steprail .seg { flex: 1; background: rgba(247,241,227,.10); }
+  #steprail .seg.done { background: rgba(232,184,75,.36); }
+  #steprail .seg.cur { background: var(--butter); }
+
+  /* Physical keys: recessed face, lit top edge, and a hard shadow underneath that
+     collapses on press, so a touch feels like it moved something. */
+  .key {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: .12em;
+    padding: 11px 13px; border-radius: 4px; cursor: pointer;
+    background: rgba(0,0,0,.22); color: inherit;
+    border: 1px solid rgba(247,241,227,.18);
+    box-shadow: inset 0 1px 0 rgba(247,241,227,.10), 0 2px 0 rgba(0,0,0,.38);
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .key svg { width: 18px; height: 18px; flex: none; }
+  .key:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(247,241,227,.08); }
+  .key:focus-visible { outline: 2px solid var(--butter); outline-offset: 3px; }
+  /* Restart is the key a guest should be able to find and not reach for by
+     accident, so it sits dimmer than the mute beside it. */
+  #restart { color: rgba(247,241,227,.6); }
+  #restart:hover { color: var(--cream); }
   #chrome-right { display: flex; align-items: center; gap: 10px; }
 
   /* Mute. Two instances of the same control: one in the chrome, one on the
      attract screen — where the bed loops all day and the chrome is hidden, so
      staff have no other way to reach for the volume. Both render off the same
      state, so whichever one a person finds is the one that works. */
-  .mute {
-    display: inline-flex; align-items: center; gap: 8px;
-    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .1em;
-    padding: 13px 13px; border: 1px solid rgba(247,241,227,.35);
-    background: none; color: inherit; cursor: pointer;
-    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
-  }
-  .mute:hover { background: rgba(247,241,227,.12); }
-  .mute:focus-visible { outline: 2px solid var(--butter); outline-offset: 3px; }
-  .mute svg { width: 18px; height: 18px; flex: none; }
   .mute .mute-label { white-space: nowrap; }
   /* Muted is the filled state on purpose: silence is the condition worth noticing
      across a room, not the normal one. Cream rather than butter, because butter
      is already spoken for by the current step two chips to the left — two filled
      amber chips in one bar and neither one means anything. */
-  .mute.off { background: var(--cream); color: var(--green); border-color: var(--cream); }
+  .mute.off {
+    background: var(--cream); color: var(--green); border-color: var(--cream);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 2px 0 rgba(0,0,0,.38);
+  }
   .mute .slash { display: none; }
   .mute.off .slash { display: inline; }
   .mute.off .waves { display: none; }
@@ -105,7 +149,7 @@
      the one piece of that screen nothing else claims. */
   #btn-mute-attract {
     position: absolute; top: 24px; right: 24px; z-index: 3;
-    padding: 15px; border-color: rgba(247,241,227,.28);
+    padding: 15px;
   }
 
   /* ------- attract ------- */
@@ -347,14 +391,20 @@
 
   <!-- top chrome -->
   <div id="chrome" class="hidden">
-    <div style="display:flex;align-items:center;gap:12px">
+    <div id="nameplate">
       <div class="logo-mark sm" role="img" aria-label="SE/O UL"></div>
-      <div style="font-size:13px;letter-spacing:.2em;font-weight:600">PHOTO BOOTH</div>
+      <div class="lines">
+        <div class="t1">PHOTO BOOTH</div>
+        <div class="t2">CAFE ON SEOUL</div>
+      </div>
     </div>
-    <div id="steps"></div>
+    <!-- Filled by renderProgress(); aria-live so the step change is announced
+         once, from the readout, rather than by six separate chips. -->
+    <div id="counter" role="status" aria-live="polite"></div>
+    <div id="steprail" aria-hidden="true"></div>
     <div id="chrome-right">
-      <button id="btn-mute" class="mute" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"></path><g class="waves"><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 5.5a9 9 0 0 1 0 13"></path></g><g class="slash"><path d="M17 9.5l5 5"></path><path d="M22 9.5l-5 5"></path></g></svg><span class="mute-label" data-i18n="mute">소리 끄기 · MUTE</span></button>
-      <div id="restart" data-i18n="restart">처음으로 / RESTART</div>
+      <button id="btn-mute" class="mute key" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"></path><g class="waves"><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 5.5a9 9 0 0 1 0 13"></path></g><g class="slash"><path d="M17 9.5l5 5"></path><path d="M22 9.5l-5 5"></path></g></svg><span class="mute-label" data-i18n="mute">소리 끄기 · MUTE</span></button>
+      <button id="restart" class="key" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"></path><path d="M3 4.5V10h5.5"></path></svg><span data-i18n="restart">처음으로 / RESTART</span></button>
     </div>
   </div>
 
@@ -366,7 +416,7 @@
            muted loop playsinline autoplay preload="auto"
            aria-hidden="true" tabindex="-1"></video>
     <div class="attract-scrim"></div>
-    <button id="btn-mute-attract" class="mute" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"></path><g class="waves"><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 5.5a9 9 0 0 1 0 13"></path></g><g class="slash"><path d="M17 9.5l5 5"></path><path d="M22 9.5l-5 5"></path></g></svg></button>
+    <button id="btn-mute-attract" class="mute key" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"></path><g class="waves"><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 5.5a9 9 0 0 1 0 13"></path></g><g class="slash"><path d="M17 9.5l5 5"></path><path d="M22 9.5l-5 5"></path></g></svg></button>
     <div class="ring" style="right:-140px;top:-140px;width:520px;height:520px"></div>
     <div class="ring" style="right:-60px;bottom:-220px;width:420px;height:420px;border-color:rgba(247,241,227,.1)"></div>
     <div class="attract-left">
@@ -559,6 +609,7 @@ const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B'
 const STRINGS = {
   ko: {
     restart:     '\uCC98\uC74C\uC73C\uB85C / RESTART',
+    steps:       { frame: '\uD544\uB984', shoot: '\uCD2C\uC601', select: '\uC120\uD0DD', filter: '\uD544\uD130', decorate: '\uAFB8\uBBF8\uAE30', print: '\uC778\uD654' },
     mute:        '\uC18C\uB9AC \uB044\uAE30 \u00B7 MUTE',
     unmute:      '\uC18C\uB9AC \uCF1C\uAE30 \u00B7 UNMUTE',
     frameTitle:  '\uD544\uB984\uC744 \uACE8\uB77C\uC8FC\uC138\uC694',
@@ -590,6 +641,7 @@ const STRINGS = {
   },
   ms: {
     restart:     'MULA SEMULA / RESTART',
+    steps:       { frame: 'FILEM', shoot: 'AMBIL', select: 'PILIH', filter: 'PENAPIS', decorate: 'PELEKAT', print: 'CETAK' },
     mute:        'SENYAP \u00B7 MUTE',
     unmute:      'BUNYI \u00B7 UNMUTE',
     frameTitle:  'PILIH FILEM ANDA',
@@ -644,6 +696,7 @@ function applyLang(lang) {
   document.documentElement.lang = state.lang;
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   updateShootTitles();
+  renderProgress();   // half the step readout is translated, half stays mono English
   renderTabs();   // the palette itself is language-free, only the tabs above it
   renderMute();   // its label is one of two strings, picked by state, not markup
 }
@@ -1051,8 +1104,10 @@ const SETS = [
   ] },
 ];
 
+// The number comes from the position in STEP_ORDER, so a step cannot be numbered
+// wrong by editing one of two lists. The localized half lives in STRINGS.steps.
 const STEP_ORDER = ['frame', 'shoot', 'select', 'filter', 'decorate', 'print'];
-const STEP_LABELS = { frame: '01 FILM', shoot: '02 SHOOT', select: '03 PICK', filter: '04 FILTER', decorate: '05 STICKERS', print: '06 PRINT' };
+const STEP_LABELS = { frame: 'FILM', shoot: 'SHOOT', select: 'PICK', filter: 'FILTER', decorate: 'STICKERS', print: 'PRINT' };
 
 const $ = id => document.getElementById(id);
 
@@ -1107,7 +1162,7 @@ function show(screen) {
   document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
   $('scr-' + screen).classList.add('active');
   $('chrome').classList.toggle('hidden', screen === 'attract');
-  renderSteps();
+  renderProgress();
   if (screen === 'shoot' && prev !== 'shoot') startCam();
   if (screen !== 'shoot' && prev === 'shoot') stopCam();
   if (screen === 'select') renderPicks();
@@ -1140,15 +1195,32 @@ function show(screen) {
   pokeIdle();
 }
 
-function renderSteps() {
+// The readout and the rail are one thing rendered twice: the counter says which
+// step in words, the rail says how far along without any. Both are painted from
+// state.screen, and applyLang() repaints them because half the readout is
+// translated.
+function renderProgress() {
   const cur = STEP_ORDER.indexOf(state.screen);
-  $('steps').innerHTML = '';
+  const rail = $('steprail');
+  rail.innerHTML = '';
   STEP_ORDER.forEach((id, i) => {
-    const d = document.createElement('div');
-    d.className = 'step' + (i === cur ? ' cur' : '');
-    d.textContent = STEP_LABELS[id];
-    $('steps').appendChild(d);
+    const seg = document.createElement('div');
+    seg.className = 'seg' + (i === cur ? ' cur' : i < cur ? ' done' : '');
+    rail.appendChild(seg);
   });
+
+  // Attract is not a step, and the chrome is hidden there anyway — but the
+  // readout is cleared rather than left showing the step the last guest ended on.
+  if (cur < 0) { $('counter').innerHTML = ''; return; }
+  const n = String(cur + 1).padStart(2, '0');
+  const total = String(STEP_ORDER.length).padStart(2, '0');
+  const loc = (STRINGS[state.lang].steps || {})[STEP_ORDER[cur]] || '';
+  $('counter').innerHTML =
+    '<div class="num">' + n + '<span class="den">/' + total + '</span></div>' +
+    '<div class="rule"></div>' +
+    '<div class="name"><div class="step-loc"></div><div class="step-en">' +
+    STEP_LABELS[STEP_ORDER[cur]] + '</div></div>';
+  $('counter').querySelector('.step-loc').textContent = loc;
 }
 
 /* ---------- camera ---------- */
