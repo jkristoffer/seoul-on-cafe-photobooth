@@ -140,6 +140,36 @@
       "src": "tmp/gen/deco-speech-heart.png",
       "set": "deco",
       "id": "speech-heart"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 19, 2026 at 10_36_38 AM (1).png",
+      "set": "badge",
+      "id": "latte-smile"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 19, 2026 at 10_36_55 AM (6).png",
+      "set": "badge",
+      "id": "latte-croissant"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 19, 2026 at 10_37_18 AM.png",
+      "set": "badge",
+      "id": "toast-seoul"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 19, 2026 at 10_37_22 AM.png",
+      "set": "badge",
+      "id": "finger-heart"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 19, 2026 at 10_37_25 AM.png",
+      "set": "badge",
+      "id": "storefront"
+    },
+    {
+      "src": "tmp/ChatGPT Image Aug 19, 2026 at 10_38_48 AM.png",
+      "set": "badge",
+      "id": "croissant-seoul"
     }
   ]
 }
