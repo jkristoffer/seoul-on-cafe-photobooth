@@ -493,10 +493,10 @@
 
 const CONFIG = {
   shotsPerSession: 4, countdownSeconds: 3, showQr: true, idleResetSeconds: 120,
-  // Clear air between one shutter and the next countdown pip. It is also the
-  // window the between-shot line has to fit inside, so shortening it below the
-  // longest of those lines (~1.0 s) puts the attendant on top of the count.
-  shotGapMs: 1200,
+  // Clear air between one shutter and the next countdown pip — long enough to
+  // drop a pose and take the next one, short enough that four shots still feel
+  // like one run.
+  shotGapMs: 700,
   sound: true,        // master switch for everything audible
   volume: 1,
   music: true,        // the two beds, independently killable
@@ -514,6 +514,9 @@ const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B'
 // purpose, so a guest who reads neither Korean nor Malay can still work the
 // booth. The attract screen itself is never translated — it is the screen that
 // asks the question, so it has to speak both at once.
+//
+// Malay is written in caps throughout, to match the English half it sits next
+// to on every label. Korean has no case, so it needs no such rule.
 //
 // Keys are the copy, not the widget: two buttons that say the same thing share
 // one key. `nextWide` differs from `next` only in its spacing, which is the
@@ -549,32 +552,32 @@ const STRINGS = {
     sets: {},   // the ko labels live on SETS itself
   },
   ms: {
-    restart:     'Mula semula / RESTART',
-    frameTitle:  'Pilih filem anda',
-    nextWide:    'Seterusnya &nbsp;\u00B7&nbsp; NEXT',
-    next:        'Seterusnya \u00B7 NEXT',
-    camRetry:    'Cuba lagi \u00B7 RETRY',
-    shootStart:  'Mula ambil \u00B7 START',
-    shootCancel: 'Berhenti \u00B7 CANCEL',
-    selectTitle: 'Pilih satu untuk dicetak',
-    retake:      'Ambil semula \u00B7 RETAKE',
-    filterHead:  'Penapis',
-    decorate:    'Hias pelekat \u00B7 DECORATE',
-    decoHint:    'Tekan untuk tambah \u00B7 Seret untuk gerak<br>TAP TO ADD \u00B7 DRAG TO MOVE',
-    decoHead:    'Hiasan',
-    backFilter:  'Penapis \u00B7 BACK',
-    undo:        'Buat asal \u00B7 UNDO',
-    clear:       'Padam semua \u00B7 CLEAR',
-    print:       'Cetak \u00B7 PRINT',
-    done:        'Selesai \u00B7 DONE',
-    comingSoon:  'Belum sedia \u00B7 COMING SOON',
-    shootHold:   'Jangan bergerak',
-    shootReady:  n => 'Ambil ' + n + ' gambar',
-    printBusy:   'Sedang mencetak',
-    printDone:   'Gambar anda siap',
-    qrReady:     'Dapatkan fail digital',
-    qrPending:   'Menyediakan fail digital',
-    qrFailed:    'Fail digital tidak berjaya',
+    restart:     'MULA SEMULA / RESTART',
+    frameTitle:  'PILIH FILEM ANDA',
+    nextWide:    'SETERUSNYA &nbsp;\u00B7&nbsp; NEXT',
+    next:        'SETERUSNYA \u00B7 NEXT',
+    camRetry:    'CUBA LAGI \u00B7 RETRY',
+    shootStart:  'MULA AMBIL \u00B7 START',
+    shootCancel: 'BERHENTI \u00B7 CANCEL',
+    selectTitle: 'PILIH SATU UNTUK DICETAK',
+    retake:      'AMBIL SEMULA \u00B7 RETAKE',
+    filterHead:  'PENAPIS',
+    decorate:    'HIAS PELEKAT \u00B7 DECORATE',
+    decoHint:    'TEKAN UNTUK TAMBAH \u00B7 SERET UNTUK GERAK<br>TAP TO ADD \u00B7 DRAG TO MOVE',
+    decoHead:    'HIASAN',
+    backFilter:  'PENAPIS \u00B7 BACK',
+    undo:        'BUAT ASAL \u00B7 UNDO',
+    clear:       'PADAM SEMUA \u00B7 CLEAR',
+    print:       'CETAK \u00B7 PRINT',
+    done:        'SELESAI \u00B7 DONE',
+    comingSoon:  'BELUM SEDIA \u00B7 COMING SOON',
+    shootHold:   'JANGAN BERGERAK',
+    shootReady:  n => 'AMBIL ' + n + ' GAMBAR',
+    printBusy:   'MENCETAK',
+    printDone:   'GAMBAR SIAP',
+    qrReady:     'DAPATKAN FAIL DIGITAL',
+    qrPending:   'MENYEDIAKAN FAIL DIGITAL',
+    qrFailed:    'FAIL DIGITAL TIDAK BERJAYA',
     sets: { ko: 'KOREA / KOREAN', mascot: 'MASKOT / MASCOT', menu: 'MENU',
             place: 'KUCHING', badge: 'LENCANA / BADGE', emoji: 'IKON / ICONS' },
   },
@@ -626,13 +629,13 @@ const SFX = {
 // Every line exists in both languages; the guest's pick at the attract screen
 // chooses which set plays. Scripts and rationale live in tools/sfx/lines.json —
 // several written lines are deliberately unrecorded and are marked there.
-const VOICE_LINES = ['welcome', 'ready', 'between', 'between_alt', 'select', 'filter', 'decorate', 'done', 'qr'];
+const VOICE_LINES = ['welcome', 'ready', 'select', 'filter', 'decorate', 'done', 'qr'];
 for (const lang of ['ko', 'ms'])
   for (const id of VOICE_LINES) SFX[`voice-${lang}-${id}`] = `assets/sfx/voice/${lang}-${id}.mp3`;
 
-// The bookends always play. Everything else is chatter: ten spoken lines a
-// session is a lot in a small room, so staff can switch the middle off without
-// losing the greeting or the one line that tells a guest how to hold the print.
+// The bookends always play. Everything else is chatter, so staff can switch the
+// middle off without losing the greeting or the one line that tells a guest how
+// to hold the print. The shoot itself is voiceless either way.
 const VOICE_ALWAYS = { welcome: 1, done: 1 };
 
 // Which line each screen announces, played a beat *after* the screen turns over
@@ -1199,11 +1202,9 @@ function frame() {
     timers.push(setTimeout(() => { updateShootTitles(); show('select'); }, 700));
     return;
   }
-  // One word of encouragement per gap, alternating so four shots do not repeat
-  // the same one. It starts clear of the shutter transient and finishes inside
-  // shotGapMs, before the next countdown pip.
-  const line = shotIdx % 2 ? 'between' : 'between_alt';
-  timers.push(setTimeout(() => { if (running) playVoice(line); }, 180));
+  // Nothing is said between shots. A line in every gap turns the shoot into a
+  // running commentary, and the beeps are already the only thing a guest needs
+  // to hear there.
   nextAt = Date.now() + CONFIG.shotGapMs + CONFIG.countdownSeconds * 1000;
 }
 
