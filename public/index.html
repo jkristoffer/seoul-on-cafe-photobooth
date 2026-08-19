@@ -893,6 +893,16 @@ const SETS = [
     { label: 'hornbill',    style: image('/assets/stickers/place-hornbill.png', 64) },
     { label: 'palm',        style: image('/assets/stickers/place-palm.png', 64) },
   ] },
+  /* Pure decoration — the only set that is not about the cafe, Kuching or the
+     menu, so it sits last among the art sets. `size` is the width of the box the
+     art is contained in, and the bow and film strip are wider than they are tall,
+     so they need a larger number than the square ones to read at the same weight. */
+  { id: 'deco', label: '데코 / DECO', items: [
+    { label: 'sparkles',   style: image('/assets/stickers/deco-sparkle-cluster.png', 56) },
+    { label: 'bow',        style: image('/assets/stickers/deco-ribbon-bow.png', 64) },
+    { label: 'film-strip', style: image('/assets/stickers/deco-film-strip.png', 76) },
+    { label: 'speech',     style: image('/assets/stickers/deco-speech-heart.png', 60) },
+  ] },
   { id: 'badge', label: '뱃지 / BADGE', items: [
     /* Merch-style die-cut badges. They carry their own lettering and dense detail,
        so they are placed large — roughly 45% of the 332px photo — and one or two

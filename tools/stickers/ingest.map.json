@@ -120,6 +120,26 @@
       "src": "tmp/gen/place-palm.png",
       "set": "place",
       "id": "palm"
+    },
+    {
+      "src": "tmp/gen/deco-sparkle-cluster.png",
+      "set": "deco",
+      "id": "sparkle-cluster"
+    },
+    {
+      "src": "tmp/gen/deco-ribbon-bow.png",
+      "set": "deco",
+      "id": "ribbon-bow"
+    },
+    {
+      "src": "tmp/gen/deco-film-strip.png",
+      "set": "deco",
+      "id": "film-strip"
+    },
+    {
+      "src": "tmp/gen/deco-speech-heart.png",
+      "set": "deco",
+      "id": "speech-heart"
     }
   ]
 }
