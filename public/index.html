@@ -76,6 +76,37 @@
     padding: 14px 16px; border: 1px solid rgba(247,241,227,.35); cursor: pointer;
   }
   #restart:hover { background: rgba(247,241,227,.12); }
+  #chrome-right { display: flex; align-items: center; gap: 10px; }
+
+  /* Mute. Two instances of the same control: one in the chrome, one on the
+     attract screen — where the bed loops all day and the chrome is hidden, so
+     staff have no other way to reach for the volume. Both render off the same
+     state, so whichever one a person finds is the one that works. */
+  .mute {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .1em;
+    padding: 13px 13px; border: 1px solid rgba(247,241,227,.35);
+    background: none; color: inherit; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .mute:hover { background: rgba(247,241,227,.12); }
+  .mute:focus-visible { outline: 2px solid var(--butter); outline-offset: 3px; }
+  .mute svg { width: 18px; height: 18px; flex: none; }
+  .mute .mute-label { white-space: nowrap; }
+  /* Muted is the filled state on purpose: silence is the condition worth noticing
+     across a room, not the normal one. Cream rather than butter, because butter
+     is already spoken for by the current step two chips to the left — two filled
+     amber chips in one bar and neither one means anything. */
+  .mute.off { background: var(--cream); color: var(--green); border-color: var(--cream); }
+  .mute .slash { display: none; }
+  .mute.off .slash { display: inline; }
+  .mute.off .waves { display: none; }
+  /* The attract copy sits left and the polaroid right; the top-right corner is
+     the one piece of that screen nothing else claims. */
+  #btn-mute-attract {
+    position: absolute; top: 24px; right: 24px; z-index: 3;
+    padding: 15px; border-color: rgba(247,241,227,.28);
+  }
 
   /* ------- attract ------- */
   #scr-attract {
@@ -321,7 +352,10 @@
       <div style="font-size:13px;letter-spacing:.2em;font-weight:600">PHOTO BOOTH</div>
     </div>
     <div id="steps"></div>
-    <div id="restart" data-i18n="restart">처음으로 / RESTART</div>
+    <div id="chrome-right">
+      <button id="btn-mute" class="mute" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"></path><g class="waves"><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 5.5a9 9 0 0 1 0 13"></path></g><g class="slash"><path d="M17 9.5l5 5"></path><path d="M22 9.5l-5 5"></path></g></svg><span class="mute-label" data-i18n="mute">소리 끄기 · MUTE</span></button>
+      <div id="restart" data-i18n="restart">처음으로 / RESTART</div>
+    </div>
   </div>
 
   <!-- attract -->
@@ -332,6 +366,7 @@
            muted loop playsinline autoplay preload="auto"
            aria-hidden="true" tabindex="-1"></video>
     <div class="attract-scrim"></div>
+    <button id="btn-mute-attract" class="mute" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"></path><g class="waves"><path d="M16.5 8.5a5 5 0 0 1 0 7"></path><path d="M19.5 5.5a9 9 0 0 1 0 13"></path></g><g class="slash"><path d="M17 9.5l5 5"></path><path d="M22 9.5l-5 5"></path></g></svg></button>
     <div class="ring" style="right:-140px;top:-140px;width:520px;height:520px"></div>
     <div class="ring" style="right:-60px;bottom:-220px;width:420px;height:420px;border-color:rgba(247,241,227,.1)"></div>
     <div class="attract-left">
@@ -524,6 +559,8 @@ const GREEN = '#123B26', CREAM = '#F7F1E3', TEAK = '#8A5A34', BUTTER = '#E8B84B'
 const STRINGS = {
   ko: {
     restart:     '\uCC98\uC74C\uC73C\uB85C / RESTART',
+    mute:        '\uC18C\uB9AC \uB044\uAE30 \u00B7 MUTE',
+    unmute:      '\uC18C\uB9AC \uCF1C\uAE30 \u00B7 UNMUTE',
     frameTitle:  '\uD544\uB984\uC744 \uACE8\uB77C\uC8FC\uC138\uC694',
     nextWide:    '\uB2E4\uC74C &nbsp;\u00B7&nbsp; NEXT',
     next:        '\uB2E4\uC74C \u00B7 NEXT',
@@ -553,6 +590,8 @@ const STRINGS = {
   },
   ms: {
     restart:     'MULA SEMULA / RESTART',
+    mute:        'SENYAP \u00B7 MUTE',
+    unmute:      'BUNYI \u00B7 UNMUTE',
     frameTitle:  'PILIH FILEM ANDA',
     nextWide:    'SETERUSNYA &nbsp;\u00B7&nbsp; NEXT',
     next:        'SETERUSNYA \u00B7 NEXT',
@@ -606,6 +645,7 @@ function applyLang(lang) {
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = t(el.dataset.i18n); });
   updateShootTitles();
   renderTabs();   // the palette itself is language-free, only the tabs above it
+  renderMute();   // its label is one of two strings, picked by state, not markup
 }
 
 /* ---------- sound ---------- */
@@ -655,7 +695,7 @@ function audioInit() {
   if (!AC) return;
   audio.ctx = new AC();
   audio.master = audio.ctx.createGain();
-  audio.master.gain.value = CONFIG.volume;
+  audio.master.gain.value = muted ? 0.0001 : CONFIG.volume;
   audio.master.connect(audio.ctx.destination);
   audio.musicBus = audio.ctx.createGain();
   audio.musicBus.gain.value = CONFIG.musicVolume;
@@ -760,6 +800,55 @@ function stopMusic(fade = 0.4) {
   try { src.stop(t + fade); } catch (e) { /* already stopped */ }
   audio.music = null;
   audio.musicName = null;
+}
+
+/* ---------- mute ----------
+
+   Pulled at the master gain rather than by stopping sources: the two beds are
+   long loops that are meant to be continuous, so a mute in the middle of a
+   session has to be a curtain over them, not a stop-and-restart. Unmuting then
+   drops back into the bed where it actually is, which is what a volume knob does.
+
+   The ramp is short but not instant — a gain step on a running loop clicks.
+
+   It survives a reset and a reload, because it is a decision about the room
+   rather than about a session: a cafe that muted the booth at 8pm wants it still
+   muted for the next guest, and after the kiosk reboots overnight. */
+const MUTE_KEY = 'booth.muted';
+
+let muted = (() => {
+  try { return localStorage.getItem(MUTE_KEY) === '1'; } catch (e) { return false; }
+})();
+
+function applyMuteGain(ramp = 0.12) {
+  if (!audio.master) return;
+  const t = audio.ctx.currentTime;
+  const g = audio.master.gain;
+  g.cancelScheduledValues(t);
+  g.setValueAtTime(g.value, t);
+  g.linearRampToValueAtTime(muted ? 0.0001 : CONFIG.volume, t + ramp);
+}
+
+// Both instances of the button, and the label on the one that has one.
+function renderMute() {
+  document.querySelectorAll('.mute').forEach(b => {
+    b.classList.toggle('off', muted);
+    b.setAttribute('aria-pressed', String(muted));
+    const label = b.querySelector('.mute-label');
+    const key = muted ? 'unmute' : 'mute';
+    b.setAttribute('aria-label', t(key).replace(/\s*·\s*/, ' / '));
+    if (label) { label.dataset.i18n = key; label.innerHTML = t(key); }
+  });
+}
+
+function toggleMute() {
+  muted = !muted;
+  try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch (e) { /* private mode */ }
+  applyMuteGain();
+  renderMute();
+  // Feedback only in the direction that can be heard. Coming back on, the tap
+  // waits out the ramp so it lands at full level rather than inside the fade.
+  if (!muted) setTimeout(() => play('tap'), 130);
 }
 
 const FILTERS = [
@@ -2341,6 +2430,12 @@ document.querySelectorAll('.lang').forEach(b =>
   }));
 
 $('scr-attract').addEventListener('click', () => startSession(CONFIG.voice));
+// Muting is not starting: on the attract screen the whole panel is the start
+// button, so this one has to hold its own tap. Unmuting there is also a gesture,
+// and the only one a guest may make before the flags — so it unlocks audio too,
+// otherwise the bed they just asked for stays silent.
+document.querySelectorAll('.mute').forEach(b =>
+  b.addEventListener('click', e => { e.stopPropagation(); audioUnlock(); toggleMute(); }));
 $('restart').addEventListener('click', () => { play('back'); reset(); });
 $('btn-frame-next').addEventListener('click', () => { play('confirm'); shots = []; state.chosenIdx = -1; renderSlots(); updateShootTitles(); show('shoot'); });
 $('btn-shoot').addEventListener('click', () => { play('confirm'); startShoot(); });
@@ -2360,7 +2455,7 @@ $('btn-done').addEventListener('click', () => { play('confirm'); reset(); });
 // audioUnlock() then only has to resume it.
 audioInit();
 
-applyLang(CONFIG.voice);
+applyLang(CONFIG.voice);   // also paints the mute button from the stored setting
 renderFrames();
 renderSlots();
 updateShootTitles();
