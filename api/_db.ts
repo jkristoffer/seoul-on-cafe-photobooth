@@ -5,6 +5,9 @@ export const TTL_MS = 24 * 60 * 60 * 1000;
 /** Short codes use a Crockford-style alphabet: no I, L, O or U. */
 export const ID_RE = /^[0-9A-HJKMNP-TV-Z]{8}$/;
 
+/** A guest book message is one line, read at arm's length off a wall. */
+export const MESSAGE_MAX = 140;
+
 export interface PhotoRow {
   id: string;
   blob_url: string;
@@ -15,6 +18,12 @@ export interface PhotoRow {
   sticker_count: number;
   byte_size: number | null;
   purged_at: string | null;
+  /** Set when the guest asked us to keep the photo; exempts it from the purge. */
+  consented_at: string | null;
+  message: string | null;
+  message_at: string | null;
+  /** Staff takedown, independent of consent. */
+  hidden_at: string | null;
 }
 
 let client: SupabaseClient | null = null;

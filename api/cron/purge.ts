@@ -13,6 +13,9 @@ export const config = { maxDuration: 60 };
  *
  * Rows are kept and stamped with purged_at rather than deleted, so session
  * stats survive the images.
+ *
+ * Guest book entries are skipped entirely: a consented photo has no deadline
+ * while its consent stands.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Fail closed: a deployed booth with no CRON_SECRET refuses to purge rather
@@ -33,6 +36,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .select('id, blob_url')
     .lt('expires_at', new Date().toISOString())
     .is('purged_at', null)
+    // Consent is what exempts a photo from the 24-hour life. Withdrawing it
+    // clears the column, and the next run collects the photo on its original
+    // deadline with no separate bookkeeping.
+    .is('consented_at', null)
     .limit(1000);
 
   if (error) {
