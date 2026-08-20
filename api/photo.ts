@@ -23,13 +23,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const expiresAt = new Date(data.expires_at).getTime();
   const consented = Boolean(data.consented_at);
+  const removed = Boolean(data.hidden_at);
+  // What suspends the expiry is the entry actually standing, not the consent on
+  // its own. A photo staff have taken down would otherwise keep the exemption it
+  // was granted for being in the guest book and be hosted, on a live link, for
+  // ever — the one outcome a takedown is supposed to prevent. Removed, it falls
+  // back to the ordinary 24 hours and the purge collects it on schedule.
+  const kept = consented && !removed;
+
   // Expiry is enforced here, not by the purge job, so the link dies on time
   // regardless of when the bytes are actually reclaimed.
   //
-  // Consent suspends it. The guest asked for the photo to be kept, and this
-  // link is the only credential they hold over the entry — a page that has gone
-  // 410 cannot offer them the button that takes it back down.
-  if (data.purged_at || (!consented && Date.now() > expiresAt)) {
+  // While an entry stands, this link is the only credential the guest holds over
+  // it — a page that has gone 410 cannot offer them the button that takes it
+  // back down — so it stays alive for as long as the entry does.
+  if (data.purged_at || (!kept && Date.now() > expiresAt)) {
     return res.status(410).json({ error: 'expired' });
   }
 
@@ -41,10 +49,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     url: data.blob_url,
     uploadedAt: new Date(data.created_at).getTime(),
     expiresAt,
+    // Consent is reported as the guest left it — a takedown is not them changing
+    // their mind, and the column that records their decision is untouched. But
+    // the removal is reported too, because the page's job is to tell them the
+    // truth about where their photo is, and offering to take down something that
+    // is already down would be a lie made of buttons.
     consented,
-    // A hidden entry still reports as consented to the guest who made it: the
-    // takedown is staff business, and dropping their consent silently would be
-    // telling them they changed their mind.
-    message: consented ? data.message : null,
+    removed,
+    message: kept ? data.message : null,
   });
 }

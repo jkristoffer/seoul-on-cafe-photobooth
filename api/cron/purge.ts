@@ -14,8 +14,8 @@ export const config = { maxDuration: 60 };
  * Rows are kept and stamped with purged_at rather than deleted, so session
  * stats survive the images.
  *
- * Guest book entries are skipped entirely: a consented photo has no deadline
- * while its consent stands.
+ * Standing guest book entries are skipped entirely: such a photo has no deadline
+ * for as long as it is actually on the wall.
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Fail closed: a deployed booth with no CRON_SECRET refuses to purge rather
@@ -36,10 +36,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .select('id, blob_url')
     .lt('expires_at', new Date().toISOString())
     .is('purged_at', null)
-    // Consent is what exempts a photo from the 24-hour life. Withdrawing it
-    // clears the column, and the next run collects the photo on its original
-    // deadline with no separate bookkeeping.
-    .is('consented_at', null)
+    // A standing guest book entry is what exempts a photo from the 24-hour life,
+    // and there are two ways to stop standing: the guest withdraws (clearing
+    // consented_at) or staff take it down (setting hidden_at). Either way the
+    // next run collects the photo on its original deadline, with no separate
+    // bookkeeping — and in particular a photo removed from the wall does not go
+    // on being hosted for ever on the exemption it was granted for being on it.
+    .or('consented_at.is.null,hidden_at.not.is.null')
     .limit(1000);
 
   if (error) {

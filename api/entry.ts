@@ -50,9 +50,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const sb = db();
   const { data: row, error: readError } = await sb
     .from('photos')
-    .select('id, expires_at, purged_at, consented_at, source')
+    .select('id, expires_at, purged_at, consented_at, hidden_at, source')
     .eq('id', id)
-    .maybeSingle<Pick<PhotoRow, 'id' | 'expires_at' | 'purged_at' | 'consented_at' | 'source'>>();
+    .maybeSingle<Pick<PhotoRow, 'id' | 'expires_at' | 'purged_at' | 'consented_at' | 'hidden_at' | 'source'>>();
 
   if (readError) {
     console.error('entry lookup failed', readError);
@@ -66,12 +66,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // for a guest's own photo and wrong for these.
   if (row.source) return res.status(403).json({ error: 'not_editable' });
 
-  // Nothing can be done to a photo whose bytes are gone, and a private photo
-  // past its deadline is already promised dead — consenting to it now would be
-  // reviving something the guest was told had expired.
+  // Nothing can be done to a photo whose bytes are gone, and a photo past its
+  // deadline is already promised dead — consenting to it now would be reviving
+  // something the guest was told had expired. Only a *standing* entry suspends
+  // that deadline, which is the same rule /api/photo and the purge apply.
+  const standing = Boolean(row.consented_at) && !row.hidden_at;
   const alive = !row.purged_at &&
-    (Boolean(row.consented_at) || Date.now() <= new Date(row.expires_at).getTime());
+    (standing || Date.now() <= new Date(row.expires_at).getTime());
   if (!alive) return res.status(410).json({ error: 'expired' });
+
+  // A takedown is not a suggestion. Withdrawal stays open — a guest can always
+  // stop consenting to something — but putting a removed photo back is staff's
+  // call, made in /api/moderate, not the guest's to make by tapping again.
+  // Writing a message to it is the same act by another route, so that is refused
+  // too — otherwise a removed entry could be re-captioned while it sat off the
+  // wall, ready to go back up saying something new.
+  if (row.hidden_at && (consent === true || message !== undefined)) {
+    return res.status(403).json({ error: 'removed' });
+  }
 
   const now = new Date().toISOString();
   const patch: Patch = {};

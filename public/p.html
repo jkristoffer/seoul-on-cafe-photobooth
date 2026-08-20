@@ -157,12 +157,14 @@ async function load() {
   const dl = $('download');
   dl.href = data.url;
   dl.setAttribute('download', 'seoul-photobooth-' + data.id + '.jpg');
-  // A consented photo has no deadline while the consent stands, so the countdown
-  // would be a lie. It comes back the moment the guest takes the entry down.
-  $('expiry').textContent = data.consented ? '' : hoursLeft(data.expiresAt);
+  // A standing entry has no deadline, so the countdown would be a lie. It comes
+  // back the moment the entry stops standing — whether the guest took it down or
+  // staff did.
+  const standing = data.consented && !data.removed;
+  $('expiry').textContent = standing ? '' : hoursLeft(data.expiresAt);
   expiresAt = data.expiresAt;
 
-  gb.state = data.consented ? 'on' : 'ask';
+  gb.state = data.removed ? 'removed' : data.consented ? 'on' : 'ask';
   if (data.message) $('gb-text').value = data.message;
   renderGb();
   $('gb').classList.add('on');
@@ -173,7 +175,7 @@ async function load() {
 const MESSAGE_MAX = 140;
 let expiresAt = 0;
 
-// 'ask' | 'saving' | 'on', plus a sticky error flag. Rendered from state rather
+// 'ask' | 'saving' | 'on' | 'removed', plus a sticky error flag. Rendered from state rather
 // than mutated in place, so consent, message and withdrawal all repaint the same
 // way and there is no half-updated card.
 const gb = { state: 'ask', error: false };
@@ -182,6 +184,11 @@ const GB_COPY = {
   ask:    ['이 사진을 방명록에 남길까요?', 'IT WILL SHOW IN THE CAFE · TAKE IT DOWN ANY TIME'],
   saving: ['저장하는 중',                 'SAVING…'],
   on:     ['방명록에 올라와 있어요',       'ADD A MESSAGE, OR TAKE IT DOWN BELOW'],
+  // A takedown is stated plainly and with no control beside it. Leaving the
+  // buttons up would be offering the guest a choice that the server will refuse,
+  // and hiding the card altogether would let them think the entry is still on
+  // the wall. The photo itself is still theirs to keep — only the wall changed.
+  removed: ['방명록에서 내려졌어요',       'REMOVED BY THE CAFE · YOUR PHOTO IS STILL YOURS TO DOWNLOAD'],
 };
 
 function renderGb() {
