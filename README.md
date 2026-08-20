@@ -10,12 +10,14 @@ them the digital file for 24 hours.
 public/index.html      the kiosk itself — fixed 1280x800 stage, vanilla JS
 public/p.html          guest download page, served at /p/:id
 public/g.html          guest book — /guestbook (archive) and /wall (display)
+public/m.html          staff moderation, served at /mod
 public/assets/         brand mark (alpha mask + square favicon)
 api/_db.ts             shared Supabase client, TTL and id format
 api/upload.ts          POST a composited JPEG, returns { id, shareUrl, qr }
 api/photo.ts           GET ?id= — resolves a short code to a blob URL
 api/entry.ts           POST — the guest's consent, message and takedown
 api/guestbook.ts       GET — the consented feed, newest first
+api/moderate.ts        GET/POST — staff review and takedown, behind MOD_SECRET
 api/cron/purge.ts      deletes expired blobs, keeps the rows
 supabase/migrations/   schema, applied with `supabase db push`
 ```
@@ -62,9 +64,10 @@ Consented photos go on a wall in the cafe and into a browsable archive.
 |---|---|
 | `/wall` | A display screen. One row of four, replaced whole every 20s, nothing operable. |
 | `/guestbook` | The archive. Scrolls back through time on a keyset cursor. |
+| `/mod` | Staff review and takedown. Passcode, phone-shaped, English only. |
 
-Both are `public/g.html`; the wall is a body class, because the difference
-between them is who is looking, not how the data is shaped.
+The first two are `public/g.html`; the wall is a body class, because the
+difference between them is who is looking, not how the data is shaped.
 
 **An entry is a photo row with `consented_at` set.** No second table, no join,
 and withdrawal is just clearing the column. That one column drives three things
@@ -81,11 +84,12 @@ Consent is only ever the guest's own act, from two surfaces:
 
 Three consequences worth knowing before changing any of this:
 
-- **A consented photo's link does not expire.** This is not a loosened promise but
+- **A standing entry's link does not expire.** This is not a loosened promise but
   a requirement: the link is the guest's whole credential over the entry, and a
   page that has gone 410 cannot offer them the button that takes it down. The
   24-hour countdown is hidden while the entry stands and returns the moment it
-  comes down.
+  stops — whether the guest withdrew or staff took it down. Note *standing*, not
+  *consented*: see the moderation section for why the difference matters.
 - **An entry is mutable.** A message can land minutes after the photo went up, so
   the wall has to handle an entry gaining a caption between polls.
 - **Declining sends no request.** Private is what the row already says, and the
@@ -111,16 +115,58 @@ posters they were published in (the uncropped originals are kept alongside).
 and `/api/entry` authorises on the code alone, so without that guard anyone who
 read the repo could take the cafe's photos down.
 
-**Still to build:** moderation (`hidden_at` exists and is honoured by the feed, but
-nothing sets it yet) and a retention limit — "permanent" is currently literal.
+### Moderation
+
+An entry reaches the wall in about twenty seconds with nobody having approved it.
+That is on purpose — a guest who consents at the booth should see themselves
+before they leave — and the price of it is that there has to be a fast way back
+off. `/mod` is that way: a phone-shaped list of every consented entry, hidden
+ones included, with **take down**, **put back** and **clear message**.
+
+Everything works through **one column, `hidden_at`**. That is deliberate: the next
+thing to want a photo off the wall is an automatic screen rather than a person,
+and it should set this same column rather than invent a second state.
+
+- **Access is a shared passcode**, `MOD_SECRET`, checked with a constant-time
+  compare and held in `localStorage` on the device. Unset, `/api/moderate` returns
+  503 and the page says so — the same fail-closed shape as the purge cron. There
+  are no accounts, which does mean actions are not attributable to a person.
+- **Nothing is destroyed.** Hiding leaves the row, the bytes and the guest's words
+  exactly as they were, so a takedown made in a hurry is one tap from undone. The
+  hidden row therefore stays *on the moderation list*, dimmed — an entry that
+  vanished when it was hidden could not be put back.
+- **Staff may delete words, never write them.** `clearMessage` is the only thing
+  that touches the text. A moderator who could edit it could put a sentence in a
+  stranger's mouth under that stranger's photo.
+- **Two columns, two people, no overwriting.** `consented_at` is the guest's
+  decision and `hidden_at` is the cafe's. An entry a guest withdrew stays down
+  whatever staff do, and a removed entry cannot be re-consented or re-captioned
+  from the phone — `/api/entry` returns 403 `removed`. Withdrawal stays open,
+  because a guest can always stop consenting to something.
+- **A takedown ends the hosting exemption.** This is the subtle one. Consent
+  exempts a photo from the 24-hour life; if a hidden entry kept that exemption it
+  would sit on a live, never-expiring link for ever — the one outcome a takedown
+  exists to prevent. So the exemption tracks the entry *standing*, not the consent:
+  `/api/photo`, `/api/entry` and the purge all read `consented_at && !hidden_at`,
+  and a removed photo falls back to its original deadline. The guest's page says
+  so plainly rather than offering buttons the server will refuse.
+- **`/api/moderate` is the only place the 8-character codes leave the table**,
+  which is why the passcode guards the GET and not just the POST. The code is the
+  credential; the takedown has to act on it; nothing else may enumerate it.
+- **How fast a takedown lands** is set by the feed's CDN cache plus the wall's
+  poll — currently about a minute worst case. `s-maxage=20, stale-while-revalidate=40`
+  in `api/guestbook.ts` is chosen for that number, not for query volume.
+
+**Still to build:** automatic screening (it would set `hidden_at`, so nothing else
+has to change) and a retention limit — "permanent" is currently literal.
 
 ## The 24-hour promise
 
 Two separate mechanisms, because Vercel Blob has no native TTL:
 
 1. `/api/photo` returns **410 Gone** once `uploadedAt + 24h` has passed. This is
-   what actually enforces the expiry the kiosk prints on screen. A consented
-   photo is exempt — see the guest book above.
+   what actually enforces the expiry the kiosk prints on screen. A photo with a
+   standing guest book entry is exempt — see the guest book above.
 2. The daily cron deletes the bytes. Hobby plans cap crons at once per day, so
    files can linger a few hours after their link has already gone dead.
 
@@ -167,7 +213,9 @@ Two things that will waste your afternoon otherwise:
   to start.
 
 Required variables: `SUPABASE_URL`, `SUPABASE_SECRET_KEY`,
-`BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`.
+`BLOB_READ_WRITE_TOKEN`, `CRON_SECRET`, `MOD_SECRET`. The last is the staff
+passcode for `/mod`; it is sensitive, so it goes in `.env` by hand too, and
+without it moderation is switched off rather than left open.
 
 ### Database changes
 

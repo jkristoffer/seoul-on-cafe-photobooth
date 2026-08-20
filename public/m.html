@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Moderation · SE/O UL Photo Booth</title>
+<link rel="icon" type="image/png" href="/assets/logo-mark.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* The staff surface. Not a guest surface: it is English only, it is deliberately
+     plain, and it is built for a phone held behind a counter with one hand while
+     something is already on the wall that should not be. Every control says what
+     it does and nothing here is more than one tap from done. */
+  :root { --green:#123B26; --green-deep:#0E3020; --cream:#F7F1E3; --butter:#E8B84B; --alarm:#D9603F; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100svh; background: var(--green-deep); color: var(--cream);
+    font-family: 'IBM Plex Sans KR', sans-serif; -webkit-font-smoothing: antialiased;
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  }
+  header {
+    display: flex; align-items: center; gap: 13px;
+    padding: 22px 20px calc(22px + env(safe-area-inset-top));
+    border-bottom: 1px solid rgba(247,241,227,.1);
+  }
+  .logo {
+    width: 26px; height: 31px; flex: none;
+    -webkit-mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    mask: url(/assets/logo-mask.png) center / contain no-repeat;
+    background-color: currentColor;
+  }
+  .titles { display: flex; flex-direction: column; gap: 3px; line-height: 1; }
+  .t1 { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: .2em; font-weight: 600; }
+  .t2 { font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: .18em; opacity: .42; }
+  #signout {
+    margin-left: auto; background: none; border: 0; cursor: pointer; padding: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: .14em;
+    color: rgba(247,241,227,.45);
+  }
+  #signout:hover { color: var(--cream); }
+
+  .note {
+    padding: 46px 24px; text-align: center; font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; letter-spacing: .13em; opacity: .5; line-height: 2.1;
+  }
+
+  /* ------- gate ------- */
+  #gate { display: none; flex-direction: column; gap: 14px; padding: 46px 24px; max-width: 340px; margin: 0 auto; }
+  #gate.on { display: flex; }
+  #gate label { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .16em; opacity: .55; }
+  #pass {
+    width: 100%; padding: 15px 14px; background: rgba(247,241,227,.06);
+    border: 1px solid rgba(247,241,227,.18); color: var(--cream);
+    font-family: 'IBM Plex Mono', monospace; font-size: 16px; letter-spacing: .1em;
+  }
+  #pass:focus { outline: 2px solid var(--butter); outline-offset: 1px; }
+  #enter {
+    padding: 15px 0; background: var(--cream); color: var(--green); border: 0; cursor: pointer;
+    font-family: inherit; font-size: 15px; font-weight: 600;
+  }
+  #gate-err { min-height: 15px; font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+              letter-spacing: .12em; color: var(--alarm); }
+
+  /* ------- list ------- */
+  #list { display: none; flex-direction: column; }
+  #list.on { display: flex; }
+  .row {
+    display: grid; grid-template-columns: 78px 1fr; gap: 15px;
+    padding: 18px 20px; border-bottom: 1px solid rgba(247,241,227,.08);
+  }
+  /* A hidden entry stays on the list, dimmed. It has to: the mistake a moderator
+     most needs to fix is their own, and an entry that vanished when it was hidden
+     could not be put back. The photo and the words go quiet; the controls and the
+     OFF THE WALL tag deliberately do not, because dimming the whole row would
+     dim PUT BACK — the one control on the page that exists to undo a mistake. */
+  .row.hidden img { opacity: .28; }
+  .row.hidden .msg, .row.hidden .none { opacity: .4; }
+  .row img { width: 78px; height: 78px; object-fit: cover; display: block; background: rgba(0,0,0,.25); }
+  .body { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 9px; align-items: baseline;
+    font-family: 'IBM Plex Mono', monospace; font-size: 9px; letter-spacing: .13em; opacity: .55;
+  }
+  .code { opacity: 1; font-weight: 600; letter-spacing: .18em; }
+  .tag { padding: 2px 6px; border: 1px solid currentColor; letter-spacing: .12em; opacity: 1; }
+  .tag.down { color: var(--alarm); }
+  .tag.seed { color: var(--butter); }
+  /* A guest's words, rendered with textContent and never wrapped in the page's
+     own voice — the moderator has to read exactly what the room is reading. */
+  .msg { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+  .msg:empty { display: none; }
+  .none { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .12em; opacity: .35; }
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .acts button {
+    /* 44px tall, not the 33 the type alone wants: this is tapped with a thumb, in
+       a hurry, by someone looking at the wall rather than the phone. */
+    padding: 13px 15px; cursor: pointer; background: transparent; color: rgba(247,241,227,.75);
+    border: 1px solid rgba(247,241,227,.22);
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .13em;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .acts button:hover { color: var(--cream); border-color: rgba(247,241,227,.5); }
+  .acts button:disabled { opacity: .4; cursor: default; }
+  /* Scoped past the shared rule above, which is (0,1,1) and would otherwise win
+     on specificity and leave the destructive button looking like the safe ones. */
+  .acts button.danger { color: var(--alarm); border-color: rgba(217,96,63,.5); }
+  .acts button.danger:hover { color: var(--alarm); border-color: var(--alarm); }
+
+  #more {
+    display: none; margin: 28px auto; padding: 14px 30px; cursor: pointer;
+    background: transparent; color: rgba(247,241,227,.6); border: 1px solid rgba(247,241,227,.2);
+    font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: .14em;
+  }
+  #more.on { display: block; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" role="img" aria-label="SE/O UL"></div>
+  <div class="titles">
+    <div class="t1">MODERATION</div>
+    <div class="t2">GUEST BOOK · CAFE ON SEOUL</div>
+  </div>
+  <button id="signout" type="button" hidden>SIGN OUT</button>
+</header>
+
+<div id="note" class="note">CHECKING…</div>
+
+<form id="gate" autocomplete="off">
+  <label for="pass">STAFF PASSCODE</label>
+  <input id="pass" type="password" inputmode="text" autocomplete="current-password">
+  <div id="gate-err" role="alert"></div>
+  <button id="enter" type="submit">ENTER</button>
+</form>
+
+<div id="list"></div>
+<button id="more" type="button">LOAD MORE</button>
+
+<script>
+'use strict';
+
+const $ = id => document.getElementById(id);
+
+// Held on the device, not in a cookie: there is no session to expire server-side,
+// and a shared counter phone should stay signed in between shifts. SIGN OUT is
+// the way off, and a 401 clears it automatically if the passcode is ever rotated.
+const KEY = 'seoul.mod.passcode';
+let pass = localStorage.getItem(KEY) || '';
+let cursor = null;
+let loading = false;
+
+function api(path, opts) {
+  const o = Object.assign({ headers: {} }, opts);
+  o.headers = Object.assign({ Authorization: 'Bearer ' + pass }, o.headers);
+  return fetch(path, o);
+}
+
+function showGate(msg) {
+  pass = '';
+  localStorage.removeItem(KEY);
+  $('note').style.display = 'none';
+  $('list').classList.remove('on');
+  $('more').classList.remove('on');
+  $('signout').hidden = true;
+  $('gate').classList.add('on');
+  $('gate-err').textContent = msg || '';
+  $('pass').focus();
+}
+
+function dateLabel(ms) {
+  const d = new Date(ms);
+  const p = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '.' + p(d.getMonth() + 1) + '.' + p(d.getDate()) +
+    ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+
+function rowEl(entry) {
+  const row = document.createElement('div');
+  row.className = 'row' + (entry.hidden ? ' hidden' : '');
+  row.dataset.id = entry.id;
+
+  const img = document.createElement('img');
+  img.src = entry.url;
+  img.loading = 'lazy';
+  img.alt = '';
+  row.appendChild(img);
+
+  const body = document.createElement('div');
+  body.className = 'body';
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const code = document.createElement('span');
+  code.className = 'code';
+  code.textContent = entry.id;
+  meta.appendChild(code);
+  const when = document.createElement('span');
+  when.textContent = dateLabel(entry.at);
+  meta.appendChild(when);
+  if (entry.hidden) {
+    const tag = document.createElement('span');
+    tag.className = 'tag down';
+    tag.textContent = 'OFF THE WALL';
+    meta.appendChild(tag);
+  }
+  if (entry.source) {
+    const tag = document.createElement('span');
+    tag.className = 'tag seed';
+    tag.textContent = 'CAFE';
+    meta.appendChild(tag);
+  }
+  body.appendChild(meta);
+
+  if (entry.message) {
+    const msg = document.createElement('div');
+    msg.className = 'msg';
+    msg.textContent = entry.message;
+    body.appendChild(msg);
+  } else {
+    const none = document.createElement('div');
+    none.className = 'none';
+    none.textContent = 'NO MESSAGE';
+    body.appendChild(none);
+  }
+
+  const acts = document.createElement('div');
+  acts.className = 'acts';
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = entry.hidden ? '' : 'danger';
+  toggle.textContent = entry.hidden ? 'PUT BACK' : 'TAKE DOWN';
+  toggle.addEventListener('click', () => act(row, toggle, { id: entry.id, hidden: !entry.hidden }));
+  acts.appendChild(toggle);
+
+  if (entry.message) {
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'danger';
+    clear.textContent = 'CLEAR MESSAGE';
+    clear.addEventListener('click', () => act(row, clear, { id: entry.id, clearMessage: true }));
+    acts.appendChild(clear);
+  }
+
+  body.appendChild(acts);
+  row.appendChild(body);
+  return row;
+}
+
+// The server's version of the row replaces the local one, so the list can never
+// drift from what the wall is actually serving.
+async function act(row, btn, patch) {
+  const buttons = row.querySelectorAll('button');
+  buttons.forEach(b => { b.disabled = true; });
+  btn.textContent = 'WORKING…';
+  try {
+    const res = await api('/api/moderate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    if (res.status === 401) return showGate('PASSCODE NO LONGER VALID');
+    if (!res.ok) throw new Error('moderate failed: ' + res.status);
+    const out = await res.json();
+    row.replaceWith(rowEl(out.entry));
+  } catch (err) {
+    console.error(err);
+    buttons.forEach(b => { b.disabled = false; });
+    btn.textContent = 'FAILED — RETRY';
+  }
+}
+
+// `silent` is for the automatic first load from a stored passcode: a code that
+// has since been rotated should drop the user at the gate without accusing them
+// of typing it wrong, which is exactly what a code they *did* just type needs.
+async function load(reset, silent) {
+  if (loading) return;
+  loading = true;
+  $('more').classList.remove('on');
+  if (reset) { cursor = null; $('list').innerHTML = ''; }
+  try {
+    const q = new URLSearchParams({ limit: '40' });
+    if (cursor) q.set('before', cursor);
+    const res = await api('/api/moderate?' + q);
+    if (res.status === 401) { loading = false; return showGate(silent ? '' : 'THAT PASSCODE WAS NOT ACCEPTED'); }
+    if (res.status === 503) {
+      loading = false;
+      $('gate').classList.remove('on');
+      $('note').style.display = '';
+      $('note').textContent = 'MODERATION IS NOT CONFIGURED — MOD_SECRET IS UNSET';
+      return;
+    }
+    if (!res.ok) throw new Error('list failed: ' + res.status);
+    const data = await res.json();
+
+    localStorage.setItem(KEY, pass);
+    $('gate').classList.remove('on');
+    $('signout').hidden = false;
+    $('list').classList.add('on');
+    data.entries.forEach(e => $('list').appendChild(rowEl(e)));
+    cursor = data.next;
+    $('more').classList.toggle('on', Boolean(cursor));
+    const empty = !$('list').children.length;
+    $('note').style.display = empty ? '' : 'none';
+    if (empty) $('note').textContent = 'NOTHING IN THE GUEST BOOK YET';
+  } catch (err) {
+    console.error(err);
+    $('note').style.display = '';
+    $('note').textContent = 'COULD NOT LOAD THE GUEST BOOK';
+  }
+  loading = false;
+}
+
+$('gate').addEventListener('submit', e => {
+  e.preventDefault();
+  const value = $('pass').value.trim();
+  if (!value) return;
+  pass = value;
+  $('pass').value = '';
+  $('gate-err').textContent = '';
+  $('note').style.display = '';
+  $('note').textContent = 'CHECKING…';
+  $('gate').classList.remove('on');
+  load(true);
+});
+
+$('more').addEventListener('click', () => load(false));
+$('signout').addEventListener('click', () => showGate(''));
+
+if (pass) load(true, true); else showGate('');
+</script>
+</body>
+</html>

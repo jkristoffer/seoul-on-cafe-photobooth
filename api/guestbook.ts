@@ -57,10 +57,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     source: r.source,
   }));
 
-  // A wall polls; the CDN should absorb that. Thirty seconds is short enough
-  // that a guest who has just consented sees themselves before they leave, and
-  // long enough that a screen refreshing every ten costs one query a minute.
-  res.setHeader('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
+  // A wall polls; the CDN should absorb that. But the cache is also the floor on
+  // how fast a takedown reaches the room, and that is the number that matters:
+  // stale-while-revalidate at 120 meant a hidden entry could stay on the wall for
+  // two and a half minutes after staff pulled it. Twenty plus forty puts the
+  // worst case near a minute and still costs about one query a minute per screen.
+  res.setHeader('Cache-Control', 'public, s-maxage=20, stale-while-revalidate=40');
   return res.status(200).json({
     entries,
     // Cursor for the next page, absent when this was the last one.

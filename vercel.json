@@ -3,7 +3,8 @@
   "rewrites": [
     { "source": "/p/:id", "destination": "/p.html" },
     { "source": "/guestbook", "destination": "/g.html" },
-    { "source": "/wall", "destination": "/g.html" }
+    { "source": "/wall", "destination": "/g.html" },
+    { "source": "/mod", "destination": "/m.html" }
   ],
   "crons": [
     { "path": "/api/cron/purge", "schedule": "0 4 * * *" }
