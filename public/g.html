@@ -52,6 +52,15 @@
      invisible under the light ones. */
   .pol { padding: 13px 13px 0; box-shadow: 0 14px 30px rgba(0,0,0,.34), 0 0 0 1px rgba(247,241,227,.09); }
   .pol img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; background: rgba(0,0,0,.2); }
+  /* A guest entry's image is already a finished polaroid — composite() bakes the
+     mount, the chosen film colour and the caption into the JPEG, which is what
+     the QR hands the guest. Wrapping that in the mount below would draw a second
+     frame and print the caption twice, so it is shown bare, at its own
+     proportions, and keeps only the shadow that lifts it off the page.
+     The seeded cafe photos are the opposite case: bare square crops, which is
+     why they get the mount and are the reason it exists. */
+  .pol.bare { padding: 0; background: none !important; }
+  .pol.bare img { aspect-ratio: auto; object-fit: contain; background: none; }
   .cap {
     display: flex; justify-content: space-between; align-items: center;
     font-family: 'IBM Plex Mono', monospace; font-size: 8px; letter-spacing: .14em;
@@ -83,14 +92,17 @@
   body.wall header { padding: 30px 44px; }
   body.wall .t1 { font-size: 17px; }
   body.wall .t2 { font-size: 12px; }
-  /* A polaroid is square, so the wall is sized by the screen's height rather
-     than its width: capping the column at a fraction of the viewport height
-     keeps the photo square and keeps the row inside a display that cannot
-     scroll, where anything too tall is silently cut off instead of overflowing
-     visibly. The min() lets a narrow screen fall back to the column width. */
+  /* The wall is sized by the screen's height rather than its width: capping the
+     column at a fraction of the viewport height keeps the row inside a display
+     that cannot scroll, where anything too tall is silently cut off instead of
+     overflowing visibly. The min() lets a narrow screen fall back to the column
+     width.
+     The cap is set by the *tallest* card, which is a guest polaroid: those are
+     about 1104x1290, so their height is roughly 1.17x the column, and a column
+     sized for the square seeds would push them off the bottom. */
   body.wall .grid {
     flex: 1; min-height: 0; max-width: none; padding: 0 44px 44px; gap: 40px;
-    grid-template-columns: repeat(4, minmax(0, min(100%, 52svh)));
+    grid-template-columns: repeat(4, minmax(0, min(100%, 45svh)));
     justify-content: center; align-content: center;
   }
   body.wall .pol { padding: 18px 18px 0; }
@@ -145,43 +157,45 @@ const FRAMES = {
   ink:   { bg: '#141414', ink: '#F7F1E3' },
 };
 
-function dateLabel(ms) {
-  const d = new Date(ms);
-  const p = n => String(n).padStart(2, '0');
-  return d.getFullYear() + '.' + p(d.getMonth() + 1) + '.' + p(d.getDate());
-}
-
 function cardEl(entry) {
+  // Seeded entries are bare photographs and need the mount drawn around them.
+  // Guest entries arrive as finished polaroids — mount, film colour, caption and
+  // all, baked in by composite() — so drawing one around them would frame a
+  // frame and caption a caption.
+  const seeded = Boolean(entry.source);
   const fr = FRAMES[entry.frame] || FRAMES.white;
 
   const card = document.createElement('div');
   card.className = 'card';
 
   const pol = document.createElement('div');
-  pol.className = 'pol';
-  pol.style.background = fr.bg;
-  pol.style.color = fr.ink;
+  pol.className = seeded ? 'pol' : 'pol bare';
+  if (seeded) {
+    pol.style.background = fr.bg;
+    pol.style.color = fr.ink;
+  }
 
   const img = document.createElement('img');
   img.src = entry.url;
   img.loading = 'lazy';
   img.alt = entry.message ||
-    (entry.source === 'instagram' ? 'A photo from Cafe On Seoul' : 'A polaroid from the SE/O UL photo booth');
+    (seeded ? 'A photo from Cafe On Seoul' : 'A polaroid from the SE/O UL photo booth');
+  pol.appendChild(img);
 
-  const cap = document.createElement('div');
-  cap.className = 'cap';
-  const left = document.createElement('span');
-  left.textContent = 'CAFE ON SEOUL';
-  const right = document.createElement('span');
-  if (entry.source === 'instagram') {
+  // Only the mounted cards carry a caption strip; a guest polaroid already has
+  // its own, printed into the image.
+  if (seeded) {
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    const left = document.createElement('span');
+    left.textContent = 'CAFE ON SEOUL';
+    const right = document.createElement('span');
     right.className = 'byline';
     right.textContent = '@cafe_on_seoul';
-  } else {
-    right.textContent = dateLabel(entry.at);
+    cap.appendChild(left); cap.appendChild(right);
+    pol.appendChild(cap);
   }
-  cap.appendChild(left); cap.appendChild(right);
 
-  pol.appendChild(img); pol.appendChild(cap);
   card.appendChild(pol);
 
   // textContent, never innerHTML: this is a stranger's words rendered on a screen
