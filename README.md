@@ -11,6 +11,7 @@ public/index.html      the kiosk itself — fixed 1280x800 stage, vanilla JS
 public/p.html          guest download page, served at /p/:id
 public/g.html          guest book — /guestbook (archive) and /wall (display)
 public/m.html          staff moderation, served at /mod
+public/sw.js           offline shell — three caches, split by rate of change
 public/assets/         brand mark (alpha mask + square favicon)
 api/_db.ts             shared Supabase client, TTL and id format
 api/upload.ts          POST a composited JPEG, returns { id, shareUrl, qr }
@@ -178,6 +179,40 @@ Two separate mechanisms, because Vercel Blob has no native TTL:
    standing guest book entry is exempt — see the guest book above.
 2. The daily cron deletes the bytes. Hobby plans cap crons at once per day, so
    files can linger a few hours after their link has already gone dead.
+
+## The offline shell
+
+`public/sw.js` precaches the booth into three caches, split by how often the
+contents change so a routine deploy re-downloads about two megabytes rather than
+eighteen:
+
+| Cache | Contents | Changes |
+|---|---|---|
+| `SHELL_CACHE` | markup, art, the attract loop | every deploy |
+| `SOUND_CACHE` | `/assets/sfx/**`, ~1.1MB | when `tools/sfx` is re-run |
+| `HEAVY_CACHE` | vendored MediaPipe wasm and model, ~15MB | when the vendored version does |
+
+The last two are served **cache-first and versioned by cache name**, so a
+regenerated sound or an upgraded MediaPipe does not reach an installed booth
+until `SOUND_CACHE` / `HEAVY_CACHE` is bumped. The shell is network-first, so
+deploys land immediately and the cache only covers being offline.
+
+Two things here were broken for a long time and are worth not reintroducing:
+
+- **`cache.put()` fails on the 11.7MB MediaPipe wasm.** It rejects with a bare
+  "encountered a network error" — same on `cache.add()`, with `reload`, and with
+  `no-store` — while the fetch itself returns all 11,756,954 bytes. Buffering the
+  body into a fresh `Response` and storing *that* works and reads back identical.
+  The `put()` helper tries the cheap path and falls back to buffering.
+- **Nothing uses `addAll()`, because it is atomic.** One asset that will not store
+  rejects the whole batch and fails the install — and a failed install leaves no
+  registration behind, so the booth silently ends up with *no service worker at
+  all*. That is exactly what the wasm was doing: the offline shell had never once
+  installed, in dev or in production, and nothing surfaced it. Failures are now
+  per-asset and logged.
+
+To check a booth: `navigator.serviceWorker.getRegistrations()` should return one
+registration, and `caches.keys()` three caches holding 8, 24 and 4 entries.
 
 ## Compositing
 
