@@ -129,8 +129,10 @@ const WALL = location.pathname === '/wall' || new URLSearchParams(location.searc
 // One row on the wall. Four polaroids across a television are readable from the
 // far side of a cafe; eight are a contact sheet nobody looks at.
 const PAGE = WALL ? 4 : 30;
-// How often the wall asks for new entries. The feed is CDN-cached for 30s, so
-// this costs about one query a minute no matter how many screens are running.
+// How often the wall asks for new entries — and, because the wall reads past the
+// CDN, the worst case for how long a taken-down entry stays on the screen. Every
+// tick is a real function invocation, so this is the dial that trades hosting
+// cost against how fast the room clears.
 const POLL_MS = 20000;
 
 // The film stocks the kiosk offers. Kept in step with FRAMES in index.html by
@@ -195,6 +197,10 @@ function cardEl(entry) {
 async function fetchPage(before) {
   const q = new URLSearchParams({ limit: String(PAGE) });
   if (before) q.set('before', before);
+  // The wall reads past the CDN, so the poll interval is the whole delay between
+  // staff taking an entry down and it leaving the room. The archive does not ask
+  // for this: it is shared, it is hit by phones, and nobody is waiting at it.
+  if (WALL) q.set('live', '1');
   const res = await fetch('/api/guestbook?' + q);
   if (!res.ok) throw new Error('guestbook failed: ' + res.status);
   return res.json();

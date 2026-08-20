@@ -62,7 +62,7 @@ Consented photos go on a wall in the cafe and into a browsable archive.
 
 | Surface | What it is |
 |---|---|
-| `/wall` | A display screen. One row of four, replaced whole every 20s, nothing operable. |
+| `/wall` | A display screen. One row of four, replaced whole every 20s, nothing operable. Reads the feed uncached. |
 | `/guestbook` | The archive. Scrolls back through time on a keyset cursor. |
 | `/mod` | Staff review and takedown. Passcode, phone-shaped, English only. |
 
@@ -153,9 +153,18 @@ and it should set this same column rather than invent a second state.
 - **`/api/moderate` is the only place the 8-character codes leave the table**,
   which is why the passcode guards the GET and not just the POST. The code is the
   credential; the takedown has to act on it; nothing else may enumerate it.
-- **How fast a takedown lands** is set by the feed's CDN cache plus the wall's
-  poll — currently about a minute worst case. `s-maxage=20, stale-while-revalidate=40`
-  in `api/guestbook.ts` is chosen for that number, not for query volume.
+- **How fast a takedown lands** is the wall's poll interval, about 20 seconds.
+  That is the floor and there is no way under it short of pushing to the screen:
+  the wall cannot act on a removal it has not asked about yet. Which is why the
+  wall reads past the CDN (`?live=1` → `no-store`) rather than the feed being
+  purged on takedown — a purge is possible (`Vercel-Cache-Tag` plus
+  `dangerouslyDeleteByTag`, *not* `invalidateByTag`, which only marks stale and
+  would serve the removed photo to the next viewer anyway) but it buys nothing
+  the poll does not already cost, in exchange for a dependency. The archive still
+  caches, briefly, because nobody is standing in front of it waiting.
+
+  The price is that every poll is a real function invocation — roughly 130k a
+  month per wall screen at 20 seconds. `POLL_MS` in `g.html` is that dial.
 
 **Still to build:** automatic screening (it would set `hidden_at`, so nothing else
 has to change) and a retention limit — "permanent" is currently literal.
